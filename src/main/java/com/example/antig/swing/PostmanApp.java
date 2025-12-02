@@ -42,7 +42,10 @@ public class PostmanApp extends JFrame {
     private JButton sendButton;
 
     private PostmanNode currentNode;
-    private File currentProjectFile;
+    // Map to track file association for each collection
+    private final Map<PostmanCollection, File> collectionFileMap = new HashMap<>();
+    
+    private PostmanNode workspaceRoot; // Invisible root to hold multiple collections
     
     // Static reference to keep the socket alive
     private static java.net.ServerSocket lockSocket;
@@ -73,7 +76,11 @@ public class PostmanApp extends JFrame {
         saveItem.addActionListener(e -> saveProject());
         JMenuItem loadItem = new JMenuItem("Load Project");
         loadItem.addActionListener(e -> loadProject());
+        
+        JMenuItem newCollectionItem = new JMenuItem("New Collection");
+        newCollectionItem.addActionListener(e -> addNewCollection());
 
+        fileMenu.add(newCollectionItem);
         fileMenu.add(saveItem);
         fileMenu.add(loadItem);
         fileMenu.addSeparator();
@@ -92,9 +99,20 @@ public class PostmanApp extends JFrame {
         mainSplitPane.setDividerLocation(250);
 
         // Left: Tree View
-        rootCollection = new PostmanCollection("My Collection");
-        treeModel = new DefaultTreeModel(rootCollection);
+        // Left: Tree View
+        // Create an invisible root node to hold multiple collections
+        workspaceRoot = new PostmanFolder("Workspace"); 
+        treeModel = new DefaultTreeModel(workspaceRoot);
         projectTree = new JTree(treeModel);
+        
+        // Hide the root node so only collections are visible at top level
+        projectTree.setRootVisible(false);
+        projectTree.setShowsRootHandles(true);
+        
+        // Add a default collection
+        PostmanCollection defaultCollection = new PostmanCollection("My Collection");
+        workspaceRoot.add(defaultCollection);
+        treeModel.reload();
         
         // Set custom cell renderer for icons
         projectTree.setCellRenderer(new PostmanTreeCellRenderer());
@@ -121,6 +139,8 @@ public class PostmanApp extends JFrame {
                     if (node != null) {
                         cloneNode(node);
                     }
+                } else if (e.getKeyCode() == java.awt.event.KeyEvent.VK_DELETE) {
+                    deleteSelectedNode();
                 }
             }
         });
@@ -240,11 +260,11 @@ public class PostmanApp extends JFrame {
 
         if (node instanceof PostmanCollection || node instanceof PostmanFolder) {
             JMenuItem addFolder = new JMenuItem("Add Folder");
-            addFolder.addActionListener(e -> addChild(node, new PostmanFolder("New Folder")));
+            addFolder.addActionListener(e -> promptAndAddChild(node, "Folder"));
             menu.add(addFolder);
 
             JMenuItem addRequest = new JMenuItem("Add Request");
-            addRequest.addActionListener(e -> addChild(node, new PostmanRequest("New Request")));
+            addRequest.addActionListener(e -> promptAndAddChild(node, "Request"));
             menu.add(addRequest);
         }
 
@@ -253,15 +273,19 @@ public class PostmanApp extends JFrame {
         menu.add(rename);
 
         JMenuItem delete = new JMenuItem("Delete");
-        delete.addActionListener(e -> {
-            if (node.getParent() != null) {
-                treeModel.removeNodeFromParent(node);
-                currentNode = null;
-                nodeConfigPanel.loadNode(null);
-                autoSaveProject();
-            }
-        });
+        delete.addActionListener(e -> deleteSelectedNode());
         menu.add(delete);
+        
+        if (node instanceof PostmanCollection) {
+             JMenuItem closeProject = new JMenuItem("Close Project");
+             closeProject.addActionListener(e -> {
+                 collectionFileMap.remove(node);
+                 treeModel.removeNodeFromParent(node);
+                 currentNode = null;
+                 nodeConfigPanel.loadNode(null);
+             });
+             menu.add(closeProject);
+        }
         
         JMenuItem clone = new JMenuItem("Clone");
         clone.addActionListener(e -> cloneNode(node));
@@ -270,10 +294,82 @@ public class PostmanApp extends JFrame {
         menu.show(projectTree, x, y);
     }
 
+    private void promptAndAddChild(PostmanNode parent, String type) {
+        String name = JOptionPane.showInputDialog(this, "Enter " + type + " name:", "New " + type);
+        if (name != null && !name.trim().isEmpty()) {
+            PostmanNode child;
+            if ("Folder".equals(type)) {
+                child = new PostmanFolder(name);
+            } else {
+                child = new PostmanRequest(name);
+            }
+            addChild(parent, child);
+        }
+    }
+
     private void addChild(PostmanNode parent, PostmanNode child) {
         treeModel.insertNodeInto(child, parent, parent.getChildCount());
-        projectTree.scrollPathToVisible(new TreePath(child.getPath()));
+        TreePath path = new TreePath(child.getPath());
+        projectTree.scrollPathToVisible(path);
+        projectTree.setSelectionPath(path);
         autoSaveProject();
+    }
+    
+    private void deleteSelectedNode() {
+        PostmanNode node = (PostmanNode) projectTree.getLastSelectedPathComponent();
+        if (node == null) return;
+        
+        int response = JOptionPane.showConfirmDialog(this, 
+            "Are you sure you want to delete '" + node.getName() + "'?", 
+            "Confirm Delete", 
+            JOptionPane.YES_NO_OPTION);
+            
+        if (response != JOptionPane.YES_OPTION) return;
+
+        if (node.getParent() != null) {
+            // Identify collection for autosave before removing
+            PostmanCollection collection = getCollectionForNode(node);
+            boolean isCollection = (node instanceof PostmanCollection);
+            
+            PostmanNode parent = (PostmanNode) node.getParent();
+            int index = parent.getIndex(node);
+            
+            // Remove from tree
+            treeModel.removeNodeFromParent(node);
+            
+            // If deleting a collection, remove from file map
+            if (isCollection) {
+                collectionFileMap.remove(node);
+            }
+            
+            // Select parent or sibling to keep selection valid
+            if (parent.getChildCount() > 0) {
+                int newIndex = Math.min(index, parent.getChildCount() - 1);
+                PostmanNode sibling = (PostmanNode) parent.getChildAt(newIndex);
+                projectTree.setSelectionPath(new TreePath(sibling.getPath()));
+            } else {
+                // If parent is workspaceRoot (invisible), and we deleted last collection, select nothing?
+                // Or if parent is a folder, select the folder.
+                if (parent != workspaceRoot) {
+                    projectTree.setSelectionPath(new TreePath(parent.getPath()));
+                } else {
+                    // Deleted a collection, clear selection
+                    currentNode = null;
+                    nodeConfigPanel.loadNode(null);
+                }
+            }
+            
+            // Autosave if we modified a collection (deleted a child)
+            if (!isCollection && collection != null && collectionFileMap.containsKey(collection)) {
+                File file = collectionFileMap.get(collection);
+                try {
+                    projectService.saveProject(collection, file);
+                    System.out.println("Autosaved (after delete) " + collection.getName() + " to " + file.getAbsolutePath());
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
     }
     
     private void cloneNode(PostmanNode node) {
@@ -396,15 +492,27 @@ public class PostmanApp extends JFrame {
     }
 
     private void saveProject() {
+        PostmanCollection collection = getCollectionForNode(currentNode);
+        if (collection == null) {
+            JOptionPane.showMessageDialog(this, "Please select a node within the collection you want to save.");
+            return;
+        }
+
         JFileChooser fileChooser = new JFileChooser();
+        // If we have a file for this collection, select it
+        if (collectionFileMap.containsKey(collection)) {
+            fileChooser.setSelectedFile(collectionFileMap.get(collection));
+        }
+
         if (fileChooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
             try {
                 File file = fileChooser.getSelectedFile();
                 saveCurrentNodeState();
-                projectService.saveProject(rootCollection, file);
-                currentProjectFile = file; // Set current file
+                projectService.saveProject(collection, file);
+                
+                collectionFileMap.put(collection, file);
                 recentProjectsManager.addRecentProject(file);
-                updateRecentProjectsMenu((JMenu) getJMenuBar().getMenu(0).getMenuComponent(3));
+                updateRecentProjectsMenu((JMenu) getJMenuBar().getMenu(0).getMenuComponent(4));
                 JOptionPane.showMessageDialog(this, "Project saved!");
             } catch (Exception e) {
                 e.printStackTrace();
@@ -422,23 +530,37 @@ public class PostmanApp extends JFrame {
     
     private void loadProjectFromFile(File file) {
         try {
-            rootCollection = projectService.loadProject(file);
-            treeModel.setRoot(rootCollection);
+            PostmanCollection loadedCollection = projectService.loadProject(file);
+            
+            // Remove default "My Collection" if it's the only node and empty
+            if (workspaceRoot.getChildCount() == 1) {
+                PostmanNode child = (PostmanNode) workspaceRoot.getChildAt(0);
+                if (child instanceof PostmanCollection && 
+                    "My Collection".equals(child.getName()) && 
+                    child.getChildCount() == 0) {
+                    workspaceRoot.remove(0);
+                }
+            }
+            
+            // Add to workspace
+            workspaceRoot.add(loadedCollection);
             treeModel.reload();
             
-            // Expand all nodes to show the loaded structure
-            expandAllNodes();
+            // Expand the new collection
+            TreePath path = new TreePath(loadedCollection.getPath());
+            projectTree.expandPath(path);
+            projectTree.scrollPathToVisible(path);
             
             currentNode = null;
-            nodeConfigPanel.loadNode(null);  // Clear the config panel
+            nodeConfigPanel.loadNode(null);
             
             recentProjectsManager.addRecentProject(file);
-            updateRecentProjectsMenu((JMenu) getJMenuBar().getMenu(0).getMenuComponent(3));
+            updateRecentProjectsMenu((JMenu) getJMenuBar().getMenu(0).getMenuComponent(4));
             
             JOptionPane.showMessageDialog(this, "Project loaded!");
             
-            // Set current file
-            currentProjectFile = file;
+            // Map the collection to the file
+            collectionFileMap.put(loadedCollection, file);
         } catch (Exception e) {
             e.printStackTrace();
             JOptionPane.showMessageDialog(this, "Error loading: " + e.getMessage());
@@ -490,16 +612,39 @@ public class PostmanApp extends JFrame {
     }
     
     private void autoSaveProject() {
-        if (currentProjectFile != null) {
+        // Find which collection needs saving
+        PostmanCollection collection = getCollectionForNode(currentNode);
+        if (collection != null && collectionFileMap.containsKey(collection)) {
+            File file = collectionFileMap.get(collection);
+            
             // Ensure in-memory model is up to date with UI if we are editing a node
             saveCurrentNodeState();
             try {
-                projectService.saveProject(rootCollection, currentProjectFile);
-                System.out.println("Autosaved to " + currentProjectFile.getAbsolutePath());
+                projectService.saveProject(collection, file);
+                System.out.println("Autosaved " + collection.getName() + " to " + file.getAbsolutePath());
             } catch (Exception e) {
                 System.err.println("Autosave failed: " + e.getMessage());
                 e.printStackTrace();
             }
+        }
+    }
+    
+    private PostmanCollection getCollectionForNode(PostmanNode node) {
+        if (node == null) return null;
+        if (node instanceof PostmanCollection) return (PostmanCollection) node;
+        return getCollectionForNode((PostmanNode) node.getParent());
+    }
+    
+    private void addNewCollection() {
+        String name = JOptionPane.showInputDialog(this, "Enter Collection name:", "New Collection");
+        if (name != null && !name.trim().isEmpty()) {
+            PostmanCollection newCollection = new PostmanCollection(name);
+            workspaceRoot.add(newCollection);
+            treeModel.reload();
+            
+            // Select it
+            TreePath path = new TreePath(newCollection.getPath());
+            projectTree.setSelectionPath(path);
         }
     }
 
