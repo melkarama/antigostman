@@ -14,6 +14,7 @@ import java.util.Properties;
 public class RecentProjectsManager {
     private static final String PREFS_FILE = System.getProperty("user.home") + "/.postman-clone-recent.properties";
     private static final String RECENT_KEY_PREFIX = "recent.";
+    private static final String THEME_KEY = "theme";
     private static final int MAX_RECENT = 10;
     
     private final List<String> recentProjects = new ArrayList<>();
@@ -93,6 +94,51 @@ public class RecentProjectsManager {
         
         try (FileOutputStream fos = new FileOutputStream(PREFS_FILE)) {
             props.store(fos, "Recent Postman Clone Projects");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+    
+    /**
+     * Get the theme preference ("light" or "dark").
+     */
+    public String getThemePreference() {
+        Properties props = new Properties();
+        File prefsFile = new File(PREFS_FILE);
+        
+        if (prefsFile.exists()) {
+            try (FileInputStream fis = new FileInputStream(prefsFile)) {
+                props.load(fis);
+                return props.getProperty(THEME_KEY, "dark"); // Default to dark
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        return "dark"; // Default to dark
+    }
+    
+    /**
+     * Set the theme preference ("light" or "dark").
+     */
+    public void setThemePreference(String theme) {
+        Properties props = new Properties();
+        File prefsFile = new File(PREFS_FILE);
+        
+        // Load existing properties first
+        if (prefsFile.exists()) {
+            try (FileInputStream fis = new FileInputStream(prefsFile)) {
+                props.load(fis);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        
+        // Set theme
+        props.setProperty(THEME_KEY, theme);
+        
+        // Save
+        try (FileOutputStream fos = new FileOutputStream(PREFS_FILE)) {
+            props.store(fos, "Postman Clone Preferences");
         } catch (IOException e) {
             e.printStackTrace();
         }

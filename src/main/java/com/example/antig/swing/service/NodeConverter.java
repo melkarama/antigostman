@@ -24,13 +24,20 @@ public class NodeConverter {
      * @return the corresponding XmlNode
      */
     public static XmlNode toXmlNode(PostmanNode postmanNode) {
-        return toXmlNode(postmanNode, 0, 100); // Max depth of 100 to prevent infinite recursion
+        return toXmlNode(postmanNode, null, 0, 100);
+    }
+    
+    /**
+     * Convert a PostmanNode tree to an XmlNode tree with expansion state.
+     */
+    public static XmlNode toXmlNode(PostmanNode postmanNode, java.util.Set<String> expandedNodeIds) {
+        return toXmlNode(postmanNode, expandedNodeIds, 0, 100);
     }
     
     /**
      * Internal method with depth limiting to prevent stack overflow.
      */
-    private static XmlNode toXmlNode(PostmanNode postmanNode, int depth, int maxDepth) {
+    private static XmlNode toXmlNode(PostmanNode postmanNode, java.util.Set<String> expandedNodeIds, int depth, int maxDepth) {
         if (postmanNode == null) {
             return null;
         }
@@ -62,13 +69,19 @@ public class NodeConverter {
             for (int i = 0; i < childCount; i++) {
                 Object child = collection.getChildAt(i);
                 if (child instanceof PostmanNode) {
-                    XmlNode xmlChild = toXmlNode((PostmanNode) child, depth + 1, maxDepth);
+                    XmlNode xmlChild = toXmlNode((PostmanNode) child, expandedNodeIds, depth + 1, maxDepth);
                     if (xmlChild != null) {
                         xmlChildren.add(xmlChild);
                     }
                 }
             }
             xmlCollection.setChildren(xmlChildren);
+            
+            // Save expansion state
+            if (expandedNodeIds != null) {
+                xmlCollection.setExpanded(expandedNodeIds.contains(collection.getId()));
+            }
+            
             xmlNode = xmlCollection;
             
         } else if (postmanNode instanceof PostmanFolder) {
@@ -91,13 +104,19 @@ public class NodeConverter {
             for (int i = 0; i < childCount; i++) {
                 Object child = folder.getChildAt(i);
                 if (child instanceof PostmanNode) {
-                    XmlNode xmlChild = toXmlNode((PostmanNode) child, depth + 1, maxDepth);
+                    XmlNode xmlChild = toXmlNode((PostmanNode) child, expandedNodeIds, depth + 1, maxDepth);
                     if (xmlChild != null) {
                         xmlChildren.add(xmlChild);
                     }
                 }
             }
             xmlFolder.setChildren(xmlChildren);
+            
+            // Save expansion state
+            if (expandedNodeIds != null) {
+                xmlFolder.setExpanded(expandedNodeIds.contains(folder.getId()));
+            }
+            
             xmlNode = xmlFolder;
             
         } else if (postmanNode instanceof PostmanRequest) {
@@ -231,5 +250,35 @@ public class NodeConverter {
         }
 
         return postmanNode;
+    }
+    
+    /**
+     * Collect IDs of nodes that were marked as expanded in the XML.
+     */
+    public static void collectExpandedNodeIds(XmlNode xmlNode, java.util.Set<String> expandedIds) {
+        if (xmlNode == null || expandedIds == null) return;
+        
+        if (xmlNode.isExpanded()) {
+            expandedIds.add(xmlNode.getId());
+        }
+        
+        // Check children
+        if (xmlNode instanceof com.example.antig.swing.model.xml.XmlCollection) {
+            com.example.antig.swing.model.xml.XmlCollection collection = 
+                (com.example.antig.swing.model.xml.XmlCollection) xmlNode;
+            if (collection.getChildren() != null) {
+                for (XmlNode child : collection.getChildren()) {
+                    collectExpandedNodeIds(child, expandedIds);
+                }
+            }
+        } else if (xmlNode instanceof com.example.antig.swing.model.xml.XmlFolder) {
+            com.example.antig.swing.model.xml.XmlFolder folder = 
+                (com.example.antig.swing.model.xml.XmlFolder) xmlNode;
+            if (folder.getChildren() != null) {
+                for (XmlNode child : folder.getChildren()) {
+                    collectExpandedNodeIds(child, expandedIds);
+                }
+            }
+        }
     }
 }

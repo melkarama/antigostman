@@ -19,7 +19,9 @@ import java.awt.event.MouseEvent;
 import java.io.File;
 import java.net.http.HttpResponse;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 public class PostmanApp extends JFrame {
 
@@ -91,6 +93,14 @@ public class PostmanApp extends JFrame {
         fileMenu.add(recentMenu);
         
         menuBar.add(fileMenu);
+        
+        // View menu for theme switching
+        JMenu viewMenu = new JMenu("View");
+        JMenuItem toggleThemeItem = new JMenuItem("Toggle Theme (Light/Dark)");
+        toggleThemeItem.addActionListener(e -> toggleTheme());
+        viewMenu.add(toggleThemeItem);
+        
+        menuBar.add(viewMenu);
         setJMenuBar(menuBar);
     }
 
@@ -119,6 +129,21 @@ public class PostmanApp extends JFrame {
         
         // Increase row height for better spacing
         projectTree.setRowHeight(28);
+        
+        // Track tree expansion/collapse events
+        projectTree.addTreeExpansionListener(new javax.swing.event.TreeExpansionListener() {
+            @Override
+            public void treeExpanded(javax.swing.event.TreeExpansionEvent event) {
+                saveTreeExpansionState();
+                autoSaveProject();
+            }
+            
+            @Override
+            public void treeCollapsed(javax.swing.event.TreeExpansionEvent event) {
+                saveTreeExpansionState();
+                autoSaveProject();
+            }
+        });
         
         projectTree.addTreeSelectionListener(e -> onNodeSelected());
         projectTree.addMouseListener(new MouseAdapter() {
@@ -322,12 +347,18 @@ public class PostmanApp extends JFrame {
         PostmanNode node = (PostmanNode) projectTree.getLastSelectedPathComponent();
         if (node == null) return;
         
-        int response = JOptionPane.showConfirmDialog(this, 
-            "Are you sure you want to delete '" + node.getName() + "'?", 
-            "Confirm Delete", 
-            JOptionPane.YES_NO_OPTION);
+        // Create custom dialog with NO button focused by default
+        Object[] options = {"Yes", "No"};
+        int response = JOptionPane.showOptionDialog(this,
+            "Are you sure you want to delete '" + node.getName() + "'?",
+            "Confirm Delete",
+            JOptionPane.YES_NO_OPTION,
+            JOptionPane.QUESTION_MESSAGE,
+            null,
+            options,
+            options[1]); // Default to "No"
             
-        if (response != JOptionPane.YES_OPTION) return;
+        if (response != 0) return; // 0 = Yes, 1 = No
 
         if (node.getParent() != null) {
             // Identify collection for autosave before removing
@@ -533,7 +564,11 @@ public class PostmanApp extends JFrame {
     
     private void loadProjectFromFile(File file) {
         try {
-            PostmanCollection loadedCollection = projectService.loadProject(file);
+            // Load project with expansion state
+            Object[] result = projectService.loadProjectWithExpansionState(file);
+            PostmanCollection loadedCollection = (PostmanCollection) result[0];
+            @SuppressWarnings("unchecked")
+            Set<String> expandedIds = (Set<String>) result[1];
             
             // Remove default "My Collection" if it's the only node and empty
             if (workspaceRoot.getChildCount() == 1) {
@@ -549,9 +584,11 @@ public class PostmanApp extends JFrame {
             workspaceRoot.add(loadedCollection);
             treeModel.reload();
             
-            // Expand the new collection
+            // Restore expansion state BEFORE showing dialog
+            restoreExpansionFromIds(loadedCollection, expandedIds);
+            
+            // Scroll to collection
             TreePath path = new TreePath(loadedCollection.getPath());
-            projectTree.expandPath(path);
             projectTree.scrollPathToVisible(path);
             
             currentNode = null;
@@ -560,13 +597,28 @@ public class PostmanApp extends JFrame {
             recentProjectsManager.addRecentProject(file);
             updateRecentProjectsMenu((JMenu) getJMenuBar().getMenu(0).getMenuComponent(4));
             
-            JOptionPane.showMessageDialog(this, "Project loaded!");
-            
             // Map the collection to the file
             collectionFileMap.put(loadedCollection, file);
+            
+            // Show confirmation AFTER expansion is applied
+            JOptionPane.showMessageDialog(this, 
+                "Project loaded successfully!\n\nLocation: " + file.getAbsolutePath());
         } catch (Exception e) {
             e.printStackTrace();
             JOptionPane.showMessageDialog(this, "Error loading: " + e.getMessage());
+        }
+    }
+    
+    private void restoreExpansionFromIds(PostmanNode node, Set<String> expandedIds) {
+        if (expandedIds.contains(node.getId())) {
+            TreePath path = new TreePath(node.getPath());
+            projectTree.expandPath(path);
+        }
+        
+        // Recursively restore children
+        for (int i = 0; i < node.getChildCount(); i++) {
+            PostmanNode child = (PostmanNode) node.getChildAt(i);
+            restoreExpansionFromIds(child, expandedIds);
         }
     }
     
@@ -622,8 +674,18 @@ public class PostmanApp extends JFrame {
             
             // Ensure in-memory model is up to date with UI if we are editing a node
             saveCurrentNodeState();
+            
+            // Collect expansion state
+            Set<String> expandedIds = new HashSet<>();
+            collectExpandedNodeIds(collection, expandedIds);
+            
             try {
-                projectService.saveProject(collection, file);
+                // Convert to XML with expansion state
+                com.example.antig.swing.model.xml.XmlNode xmlNode = 
+                    com.example.antig.swing.service.NodeConverter.toXmlNode(collection, expandedIds);
+                
+                // Save using ProjectService (which expects PostmanCollection, but we'll update it)
+                projectService.saveProject(collection, file, expandedIds);
                 System.out.println("Autosaved " + collection.getName() + " to " + file.getAbsolutePath());
             } catch (Exception e) {
                 System.err.println("Autosave failed: " + e.getMessage());
@@ -650,6 +712,51 @@ public class PostmanApp extends JFrame {
             projectTree.setSelectionPath(path);
         }
     }
+    
+    private void toggleTheme() {
+        String currentTheme = recentProjectsManager.getThemePreference();
+        boolean isDark = "dark".equals(currentTheme);
+        
+        try {
+            if (isDark) {
+                com.formdev.flatlaf.FlatLightLaf.setup();
+                recentProjectsManager.setThemePreference("light");
+            } else {
+                com.formdev.flatlaf.FlatDarkLaf.setup();
+                recentProjectsManager.setThemePreference("dark");
+            }
+            
+            // Update all components
+            SwingUtilities.updateComponentTreeUI(this);
+            
+            // Refresh tree to apply new theme
+            treeModel.reload();
+            
+        } catch (Exception e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Failed to switch theme: " + e.getMessage());
+        }
+    }
+    
+    private void saveTreeExpansionState() {
+        // Expansion state is now saved directly in autoSaveProject
+        // This method is kept for compatibility but does nothing
+    }
+    
+    private void collectExpandedNodeIds(PostmanNode node, Set<String> expandedIds) {
+        TreePath path = new TreePath(node.getPath());
+        if (projectTree.isExpanded(path)) {
+            expandedIds.add(node.getId());
+        }
+        
+        // Recursively check children
+        for (int i = 0; i < node.getChildCount(); i++) {
+            PostmanNode child = (PostmanNode) node.getChildAt(i);
+            collectExpandedNodeIds(child, expandedIds);
+        }
+    }
+    
+
 
     public static void main(String[] args) {
         // Single instance check
@@ -663,8 +770,16 @@ public class PostmanApp extends JFrame {
         }
 
         try {
-            // Use FlatLaf Dark theme for modern look
-            com.formdev.flatlaf.FlatDarkLaf.setup();
+            // Load theme preference
+            RecentProjectsManager tempManager = new RecentProjectsManager();
+            String theme = tempManager.getThemePreference();
+            
+            if ("light".equals(theme)) {
+                com.formdev.flatlaf.FlatLightLaf.setup();
+            } else {
+                // Default to dark theme
+                com.formdev.flatlaf.FlatDarkLaf.setup();
+            }
         } catch (Exception e) {
             e.printStackTrace();
             // Fallback to system look and feel

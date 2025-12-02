@@ -27,6 +27,7 @@ public abstract class XmlNode {
     private Map<String, String> headers = new HashMap<>();
     private String prescript = "";
     private String postscript = "";
+    private boolean expanded = false; // Track if node was expanded in UI
 
     public XmlNode() {
     }
@@ -82,5 +83,13 @@ public abstract class XmlNode {
 
     public void setPostscript(String postscript) {
         this.postscript = postscript;
+    }
+    
+    public boolean isExpanded() {
+        return expanded;
+    }
+    
+    public void setExpanded(boolean expanded) {
+        this.expanded = expanded;
     }
 }

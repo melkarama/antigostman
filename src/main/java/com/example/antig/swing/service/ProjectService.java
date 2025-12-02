@@ -17,7 +17,7 @@ public class ProjectService {
         this.xmlMapper.enable(SerializationFeature.INDENT_OUTPUT);
     }
 
-    public void saveProject(PostmanCollection collection, File file) throws IOException {
+    public void saveProject(PostmanCollection collection, File file, java.util.Set<String> expandedNodeIds) throws IOException {
         if (collection == null) {
             throw new IllegalArgumentException("Cannot save null collection");
         }
@@ -26,8 +26,8 @@ public class ProjectService {
         }
         
         try {
-            // Convert PostmanCollection to XmlCollection (no parent references)
-            XmlCollection xmlCollection = (XmlCollection) NodeConverter.toXmlNode(collection);
+            // Convert PostmanCollection to XmlCollection with expansion state
+            XmlCollection xmlCollection = (XmlCollection) NodeConverter.toXmlNode(collection, expandedNodeIds);
             
             if (xmlCollection == null) {
                 throw new IOException("Failed to convert collection to XML format");
@@ -37,6 +37,10 @@ public class ProjectService {
         } catch (IOException e) {
             throw new IOException("Failed to save project to " + file.getAbsolutePath() + ": " + e.getMessage(), e);
         }
+    }
+
+    public void saveProject(PostmanCollection collection, File file) throws IOException {
+        saveProject(collection, file, null);
     }
 
     public PostmanCollection loadProject(File file) throws IOException {
@@ -65,6 +69,47 @@ public class ProjectService {
             }
             
             return collection;
+        } catch (IOException e) {
+            throw new IOException("Failed to load project from " + file.getAbsolutePath() + ": " + e.getMessage(), e);
+        }
+    }
+
+    
+    /**
+     * Load project and extract expansion state.
+     * Returns array: [0] = PostmanCollection, [1] = Set of expanded node IDs
+     */
+    public Object[] loadProjectWithExpansionState(File file) throws IOException {
+        if (file == null) {
+            throw new IllegalArgumentException("Cannot load from null file");
+        }
+        if (!file.exists()) {
+            throw new IOException("File does not exist: " + file.getAbsolutePath());
+        }
+        if (!file.canRead()) {
+            throw new IOException("Cannot read file: " + file.getAbsolutePath());
+        }
+        
+        try {
+            // Deserialize to XmlCollection
+            XmlCollection xmlCollection = xmlMapper.readValue(file, XmlCollection.class);
+            
+            if (xmlCollection == null) {
+                throw new IOException("Failed to parse XML file - result is null");
+            }
+            
+            // Extract expansion state
+            java.util.Set<String> expandedIds = new java.util.HashSet<>();
+            NodeConverter.collectExpandedNodeIds(xmlCollection, expandedIds);
+            
+            // Convert to PostmanCollection
+            PostmanCollection collection = (PostmanCollection) NodeConverter.toPostmanNode(xmlCollection);
+            
+            if (collection == null) {
+                throw new IOException("Failed to convert XML to PostmanCollection");
+            }
+            
+            return new Object[] { collection, expandedIds };
         } catch (IOException e) {
             throw new IOException("Failed to load project from " + file.getAbsolutePath() + ": " + e.getMessage(), e);
         }
