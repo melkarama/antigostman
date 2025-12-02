@@ -2,11 +2,21 @@ package com.example.antig.swing.ui;
 
 import com.example.antig.swing.model.PostmanNode;
 import com.example.antig.swing.model.PostmanRequest;
+import org.fife.ui.autocomplete.*;
+import org.fife.ui.rsyntaxtextarea.RSyntaxTextArea;
+import org.fife.ui.rsyntaxtextarea.SyntaxConstants;
+import org.fife.ui.rtextarea.RTextScrollPane;
 
 import javax.swing.*;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import java.awt.*;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Tabbed panel for configuring nodes (Collection, Folder, Request).
@@ -27,8 +37,8 @@ public class NodeConfigPanel extends JPanel {
     // Common tabs
     private JTextArea environmentArea;
     private JTextArea headersArea;
-    private JTextArea prescriptArea;
-    private JTextArea postscriptArea;
+    private RSyntaxTextArea prescriptArea;
+    private RSyntaxTextArea postscriptArea;
     
     // Request-only tabs
     private JTextArea paramsArea;
@@ -51,12 +61,12 @@ public class NodeConfigPanel extends JPanel {
         tabbedPane.addTab("Headers", new JScrollPane(headersArea));
         
         // Tab 3: Prescript
-        prescriptArea = createTextArea();
-        tabbedPane.addTab("Prescript", new JScrollPane(prescriptArea));
+        prescriptArea = createCodeEditor();
+        tabbedPane.addTab("Prescript", new RTextScrollPane(prescriptArea));
         
         // Tab 4: Postscript
-        postscriptArea = createTextArea();
-        tabbedPane.addTab("Postscript", new JScrollPane(postscriptArea));
+        postscriptArea = createCodeEditor();
+        tabbedPane.addTab("Postscript", new RTextScrollPane(postscriptArea));
         
         // Tab 5: Execution (for requests only)
         createExecutionPanel();
@@ -69,6 +79,89 @@ public class NodeConfigPanel extends JPanel {
         area.setFont(new Font("Monospaced", Font.PLAIN, 12));
         area.setTabSize(2);
         return area;
+    }
+
+    private RSyntaxTextArea createCodeEditor() {
+        RSyntaxTextArea textArea = new RSyntaxTextArea();
+        textArea.setSyntaxEditingStyle(SyntaxConstants.SYNTAX_STYLE_JAVASCRIPT);
+        textArea.setCodeFoldingEnabled(true);
+        textArea.setAntiAliasingEnabled(true);
+        textArea.setTabSize(2);
+        
+        // Auto completion
+        DefaultCompletionProvider provider = createCompletionProvider();
+        AutoCompletion ac = new AutoCompletion(provider);
+        ac.install(textArea);
+        
+        // Dynamic completion update
+        textArea.getDocument().addDocumentListener(new DocumentListener() {
+            @Override
+            public void insertUpdate(DocumentEvent e) {
+                updateCompletions(textArea, provider);
+            }
+
+            @Override
+            public void removeUpdate(DocumentEvent e) {
+                updateCompletions(textArea, provider);
+            }
+
+            @Override
+            public void changedUpdate(DocumentEvent e) {
+                updateCompletions(textArea, provider);
+            }
+        });
+        
+        return textArea;
+    }
+
+    private DefaultCompletionProvider createCompletionProvider() {
+        DefaultCompletionProvider provider = new DefaultCompletionProvider();
+        
+        // Add basic JavaScript keywords and Postman-specific objects
+        addBaseCompletions(provider);
+        
+        return provider;
+    }
+    
+    private void addBaseCompletions(DefaultCompletionProvider provider) {
+        provider.addCompletion(new BasicCompletion(provider, "console.log"));
+        provider.addCompletion(new BasicCompletion(provider, "pm.environment.get"));
+        provider.addCompletion(new BasicCompletion(provider, "pm.environment.set"));
+        provider.addCompletion(new BasicCompletion(provider, "pm.response.json"));
+        provider.addCompletion(new BasicCompletion(provider, "pm.test"));
+        provider.addCompletion(new BasicCompletion(provider, "pm.expect"));
+        provider.addCompletion(new BasicCompletion(provider, "function"));
+        provider.addCompletion(new BasicCompletion(provider, "var"));
+        provider.addCompletion(new BasicCompletion(provider, "let"));
+        provider.addCompletion(new BasicCompletion(provider, "const"));
+        provider.addCompletion(new BasicCompletion(provider, "if"));
+        provider.addCompletion(new BasicCompletion(provider, "else"));
+        provider.addCompletion(new BasicCompletion(provider, "for"));
+        provider.addCompletion(new BasicCompletion(provider, "return"));
+    }
+    
+    private void updateCompletions(RSyntaxTextArea textArea, DefaultCompletionProvider provider) {
+        SwingUtilities.invokeLater(() -> {
+            String text = textArea.getText();
+            Set<String> foundWords = new HashSet<>();
+            
+            // Regex to find variable and function declarations
+            // Matches: var x, let y, const z, function f
+            Pattern pattern = Pattern.compile("\\b(var|let|const|function)\\s+([a-zA-Z_$][a-zA-Z0-9_$]*)");
+            Matcher matcher = pattern.matcher(text);
+            
+            while (matcher.find()) {
+                foundWords.add(matcher.group(2));
+            }
+            
+            // Rebuild completions
+            provider.clear();
+            addBaseCompletions(provider);
+            
+            for (String word : foundWords) {
+                provider.addCompletion(new BasicCompletion(provider, word));
+            }
+        });
     }
     
     private void createExecutionPanel() {
