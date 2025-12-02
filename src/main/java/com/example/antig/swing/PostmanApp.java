@@ -42,6 +42,10 @@ public class PostmanApp extends JFrame {
     private JButton sendButton;
 
     private PostmanNode currentNode;
+    private File currentProjectFile;
+    
+    // Static reference to keep the socket alive
+    private static java.net.ServerSocket lockSocket;
 
     public PostmanApp() {
         this.httpClientService = new HttpClientService();
@@ -56,6 +60,9 @@ public class PostmanApp extends JFrame {
 
         initMenu();
         initComponents();
+        
+        // Load last opened project
+        SwingUtilities.invokeLater(this::loadLastOpenedProject);
     }
 
     private void initMenu() {
@@ -167,6 +174,7 @@ public class PostmanApp extends JFrame {
 
         // Save current state before switching
         saveCurrentNodeState();
+        autoSaveProject(); // Autosave when switching nodes
 
         currentNode = node;
 
@@ -220,6 +228,7 @@ public class PostmanApp extends JFrame {
             node.setName(newName);
             treeModel.nodeChanged(node);
             if (node == currentNode) onNodeSelected(); // Refresh UI label
+            autoSaveProject();
         }
     }
 
@@ -249,6 +258,7 @@ public class PostmanApp extends JFrame {
                 treeModel.removeNodeFromParent(node);
                 currentNode = null;
                 nodeConfigPanel.loadNode(null);
+                autoSaveProject();
             }
         });
         menu.add(delete);
@@ -263,6 +273,7 @@ public class PostmanApp extends JFrame {
     private void addChild(PostmanNode parent, PostmanNode child) {
         treeModel.insertNodeInto(child, parent, parent.getChildCount());
         projectTree.scrollPathToVisible(new TreePath(child.getPath()));
+        autoSaveProject();
     }
     
     private void cloneNode(PostmanNode node) {
@@ -295,9 +306,14 @@ public class PostmanApp extends JFrame {
             PostmanNode parent = (PostmanNode) node.getParent();
             if (parent != null) {
                 addChild(parent, clone);
+                // Select the new cloned node
+                TreePath path = new TreePath(clone.getPath());
+                projectTree.setSelectionPath(path);
+                projectTree.scrollPathToVisible(path);
             } else {
                 JOptionPane.showMessageDialog(this, "Cannot clone the root node.");
             }
+            autoSaveProject();
         } catch (Exception e) {
             e.printStackTrace();
             JOptionPane.showMessageDialog(this, "Clone failed: " + e.getMessage());
@@ -386,6 +402,7 @@ public class PostmanApp extends JFrame {
                 File file = fileChooser.getSelectedFile();
                 saveCurrentNodeState();
                 projectService.saveProject(rootCollection, file);
+                currentProjectFile = file; // Set current file
                 recentProjectsManager.addRecentProject(file);
                 updateRecentProjectsMenu((JMenu) getJMenuBar().getMenu(0).getMenuComponent(3));
                 JOptionPane.showMessageDialog(this, "Project saved!");
@@ -419,6 +436,9 @@ public class PostmanApp extends JFrame {
             updateRecentProjectsMenu((JMenu) getJMenuBar().getMenu(0).getMenuComponent(3));
             
             JOptionPane.showMessageDialog(this, "Project loaded!");
+            
+            // Set current file
+            currentProjectFile = file;
         } catch (Exception e) {
             e.printStackTrace();
             JOptionPane.showMessageDialog(this, "Error loading: " + e.getMessage());
@@ -459,7 +479,41 @@ public class PostmanApp extends JFrame {
         }
     }
 
+    private void loadLastOpenedProject() {
+        java.util.List<String> recent = recentProjectsManager.getRecentProjects();
+        if (!recent.isEmpty()) {
+            File lastFile = new File(recent.get(0));
+            if (lastFile.exists()) {
+                loadProjectFromFile(lastFile);
+            }
+        }
+    }
+    
+    private void autoSaveProject() {
+        if (currentProjectFile != null) {
+            // Ensure in-memory model is up to date with UI if we are editing a node
+            saveCurrentNodeState();
+            try {
+                projectService.saveProject(rootCollection, currentProjectFile);
+                System.out.println("Autosaved to " + currentProjectFile.getAbsolutePath());
+            } catch (Exception e) {
+                System.err.println("Autosave failed: " + e.getMessage());
+                e.printStackTrace();
+            }
+        }
+    }
+
     public static void main(String[] args) {
+        // Single instance check
+        try {
+            // Bind to 127.0.0.1 explicitly to avoid IPv4/IPv6 ambiguity
+            // Use a static field to prevent garbage collection
+            lockSocket = new java.net.ServerSocket(54321, 0, java.net.InetAddress.getByName("127.0.0.1"));
+        } catch (java.io.IOException e) {
+            JOptionPane.showMessageDialog(null, "Application is already running.", "Error", JOptionPane.ERROR_MESSAGE);
+            System.exit(1);
+        }
+
         try {
             UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
         } catch (Exception e) {
