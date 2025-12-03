@@ -145,8 +145,13 @@ public class PostmanApp extends JFrame {
 		workspaceRoot.add(defaultCollection);
 		treeModel.reload();
 
-		// Set custom cell renderer for icons
-		projectTree.setCellRenderer(new PostmanTreeCellRenderer());
+		        // Set custom cell renderer for icons
+        projectTree.setCellRenderer(new PostmanTreeCellRenderer());
+        
+        // Enable Drag and Drop
+        projectTree.setDragEnabled(true);
+        projectTree.setDropMode(javax.swing.DropMode.ON_OR_INSERT);
+        projectTree.setTransferHandler(new TreeTransferHandler());
 
 		// Increase row height for better spacing
 		projectTree.setRowHeight(28);
@@ -219,6 +224,18 @@ public class PostmanApp extends JFrame {
 		String[] methods = { "GET", "POST", "PUT", "DELETE", "PATCH" };
 		methodComboBox = new JComboBox<>(methods);
 		methodComboBox.setPreferredSize(new Dimension(100, 30));
+        methodComboBox.addActionListener(e -> {
+            if (currentNode instanceof PostmanRequest) {
+                PostmanRequest req = (PostmanRequest) currentNode;
+                String newMethod = (String) methodComboBox.getSelectedItem();
+                if (newMethod != null && !newMethod.equals(req.getMethod())) {
+                    req.setMethod(newMethod);
+                    // Notify tree model of change to trigger repaint (icon update)
+                    treeModel.nodeChanged(req);
+                    autoSaveProject();
+                }
+            }
+        });
 
 		urlField = new JTextField();
 
@@ -780,18 +797,118 @@ public class PostmanApp extends JFrame {
 		// This method is kept for compatibility but does nothing
 	}
 
-	private void collectExpandedNodeIds(PostmanNode node, Set<String> expandedIds) {
-		TreePath path = new TreePath(node.getPath());
-		if (projectTree.isExpanded(path)) {
-			expandedIds.add(node.getId());
-		}
+	    private void collectExpandedNodeIds(PostmanNode node, Set<String> expandedIds) {
+        TreePath path = new TreePath(node.getPath());
+        if (projectTree.isExpanded(path)) {
+            expandedIds.add(node.getId());
+        }
 
-		// Recursively check children
-		for (int i = 0; i < node.getChildCount(); i++) {
-			PostmanNode child = (PostmanNode) node.getChildAt(i);
-			collectExpandedNodeIds(child, expandedIds);
-		}
-	}
+        // Recursively check children
+        for (int i = 0; i < node.getChildCount(); i++) {
+            PostmanNode child = (PostmanNode) node.getChildAt(i);
+            collectExpandedNodeIds(child, expandedIds);
+        }
+    }
+
+    // Inner class for handling Drag and Drop
+    private class TreeTransferHandler extends javax.swing.TransferHandler {
+        @Override
+        public int getSourceActions(javax.swing.JComponent c) {
+            return MOVE;
+        }
+
+        @Override
+        protected java.awt.datatransfer.Transferable createTransferable(javax.swing.JComponent c) {
+            JTree tree = (JTree) c;
+            TreePath path = tree.getSelectionPath();
+            if (path != null) {
+                PostmanNode node = (PostmanNode) path.getLastPathComponent();
+                // Prevent dragging the root workspace or collections (optional, but good for structure)
+                // Allowing dragging collections to reorder them is fine, but not into folders
+                return new java.awt.datatransfer.StringSelection(node.getId()); // Use ID as transfer data
+            }
+            return null;
+        }
+
+        @Override
+        public boolean canImport(TransferSupport support) {
+            if (!support.isDataFlavorSupported(java.awt.datatransfer.DataFlavor.stringFlavor)) {
+                return false;
+            }
+            // Check drop location
+            JTree.DropLocation dl = (JTree.DropLocation) support.getDropLocation();
+            TreePath path = dl.getPath();
+            if (path == null) return false;
+            
+            PostmanNode targetNode = (PostmanNode) path.getLastPathComponent();
+            
+            // Can only drop into Folders or Collections (which act as folders)
+            // Or insert between nodes (parent must be folder/collection)
+            return targetNode instanceof PostmanFolder || targetNode instanceof PostmanCollection;
+        }
+
+        @Override
+        public boolean importData(TransferSupport support) {
+            if (!canImport(support)) {
+                return false;
+            }
+            
+            try {
+                // Get dropped node ID
+                String nodeId = (String) support.getTransferable().getTransferData(java.awt.datatransfer.DataFlavor.stringFlavor);
+                PostmanNode draggedNode = findNodeById(workspaceRoot, nodeId);
+                
+                if (draggedNode == null) return false;
+
+                JTree.DropLocation dl = (JTree.DropLocation) support.getDropLocation();
+                TreePath destPath = dl.getPath();
+                PostmanNode targetParent = (PostmanNode) destPath.getLastPathComponent();
+                
+                // Prevent dropping into itself or its children
+                if (draggedNode == targetParent || isChildOf(draggedNode, targetParent)) {
+                    return false;
+                }
+                
+                // Perform move
+                treeModel.removeNodeFromParent(draggedNode);
+                
+                int index = dl.getChildIndex();
+                if (index == -1) {
+                    index = targetParent.getChildCount();
+                }
+                
+                treeModel.insertNodeInto(draggedNode, targetParent, index);
+                
+                // Expand target and select moved node
+                projectTree.expandPath(destPath);
+                projectTree.setSelectionPath(new TreePath(draggedNode.getPath()));
+                
+                // Autosave
+                autoSaveProject();
+                
+                return true;
+            } catch (Exception e) {
+                e.printStackTrace();
+                return false;
+            }
+        }
+        
+        private PostmanNode findNodeById(PostmanNode root, String id) {
+            if (root.getId().equals(id)) return root;
+            for (int i = 0; i < root.getChildCount(); i++) {
+                PostmanNode found = findNodeById((PostmanNode) root.getChildAt(i), id);
+                if (found != null) return found;
+            }
+            return null;
+        }
+        
+        private boolean isChildOf(PostmanNode potentialParent, PostmanNode node) {
+            if (node == null) return false;
+            if (node == potentialParent) return true;
+            if (node.getParent() == null) return false; // Reached root without finding potentialParent
+            return isChildOf(potentialParent, (PostmanNode) node.getParent());
+        }
+    }
 
 	public static void main(String[] args) {
 		// Single instance check
