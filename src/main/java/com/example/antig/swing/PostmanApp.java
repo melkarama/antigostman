@@ -7,7 +7,10 @@ import java.awt.FlowLayout;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.File;
+import java.io.StringReader;
+import java.net.URLEncoder;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -15,6 +18,8 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.TreeMap;
 
+import javax.script.ScriptEngine;
+import javax.script.ScriptEngineManager;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.JButton;
@@ -48,7 +53,6 @@ import com.example.antig.swing.service.RecentProjectsManager;
 import com.example.antig.swing.ui.NodeConfigPanel;
 import com.example.antig.swing.ui.PostmanTreeCellRenderer;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.socle2.utils.JSONUtils;
 import com.socle2.utils.PropertiesUtils;
 
 import lombok.extern.slf4j.Slf4j;
@@ -597,36 +601,109 @@ public class PostmanApp extends JFrame {
 			return;
 		}
 
-		Map<String, String> env = createEnv(currentNode);
-		Map<String, String> headers = createHeaders(currentNode, env);
-
-		log.info("Env : {}", JSONUtils.toJson(env, true));
-		log.info("Headers : {}", JSONUtils.toJson(headers, true));
-
+		PostmanRequest req = (PostmanRequest) currentNode;
 		saveCurrentNodeState(); // Ensure latest edits are saved
 
-		PostmanRequest req = (PostmanRequest) currentNode;
+		// 1. Initial Environment
+		Map<String, String> env = createEnv(currentNode);
 
-		// Collect Scoped Headers
-		Map<String, String> effectiveHeaders = new HashMap<>();
-		collectHeaders(req, effectiveHeaders);
+		// 2. Script Engine Setup
+		ScriptEngine engine = new ScriptEngineManager().getEngineByName("nashorn");
+		if (engine == null) {
+			// Fallback if nashorn is not found (e.g. newer Java versions without
+			// dependency)
+			engine = new ScriptEngineManager().getEngineByName("js");
+		}
 
+		if (engine == null) {
+			JOptionPane.showMessageDialog(this,
+					"JavaScript engine not found. Please ensure Nashorn or GraalJS is available.");
+			return;
+		}
+
+		ScriptEngine fEngine = engine;
+
+		// 3. PM Object Setup & Prescript
+		PmContext pm = new PmContext(env, req);
+		fEngine.put("pm", pm);
+		fEngine.put("console", new ConsoleLogger());
+
+		String prescript = req.getPrescript();
+		if (prescript != null && !prescript.trim().isEmpty()) {
+			try {
+				fEngine.eval(prescript);
+			} catch (Exception e) {
+				log.error("Prescript error", e);
+				nodeConfigPanel.getResponseArea().setText("Prescript Error: " + e.getMessage());
+				return;
+			}
+		}
+
+		// 4. Prepare Request (using potentially modified env)
+		Map<String, String> headers = createHeaders(currentNode, env);
+
+		// 5. Body Formatting & Content-Type
+		String bodyType = req.getBodyType() != null ? req.getBodyType() : "TEXT";
+		String bodyToSend = req.getBody();
+
+		if ("FORM ENCODED".equalsIgnoreCase(bodyType)) {
+			// Parse properties to map and convert to URL encoded
+			Map<String, String> formParams = parseProperties(bodyToSend);
+			StringBuilder encoded = new StringBuilder();
+			for (Map.Entry<String, String> entry : formParams.entrySet()) {
+				if (encoded.length() > 0) {
+					encoded.append("&");
+				}
+				encoded.append(URLEncoder.encode(entry.getKey(), StandardCharsets.UTF_8));
+				if (entry.getValue() != null) {
+					encoded.append("=").append(URLEncoder.encode(entry.getValue(), StandardCharsets.UTF_8));
+				}
+			}
+			bodyToSend = encoded.toString();
+			if (!headers.containsKey("Content-Type")) {
+				headers.put("Content-Type", "application/x-www-form-urlencoded");
+			}
+		} else if ("JSON".equalsIgnoreCase(bodyType)) {
+			if (!headers.containsKey("Content-Type")) {
+				headers.put("Content-Type", "application/json");
+			}
+		} else if ("XML".equalsIgnoreCase(bodyType)) {
+			if (!headers.containsKey("Content-Type")) {
+				headers.put("Content-Type", "application/xml");
+			}
+		}
+
+		// 6. Send Request
 		sendButton.setEnabled(false);
 		nodeConfigPanel.getResponseArea().setText("Sending request...");
+
+		String finalBody = bodyToSend;
+		Map<String, String> finalHeaders = headers;
 
 		SwingWorker<HttpResponse<String>, Void> worker = new SwingWorker<>() {
 			@Override
 			protected HttpResponse<String> doInBackground() throws Exception {
-				// We need to modify HttpClientService to accept headers
-				// For now, we will simulate it or assume HttpClientService is updated
-				// Let's assume we update HttpClientService.sendRequest to take headers
-				return httpClientService.sendRequest(req.getUrl(), req.getMethod(), req.getBody(), effectiveHeaders);
+				return httpClientService.sendRequest(req.getUrl(), req.getMethod(), finalBody, finalHeaders);
 			}
 
 			@Override
 			protected void done() {
 				try {
 					HttpResponse<String> response = get();
+
+					// 7. Postscript
+					pm.response = new PmResponse(response);
+					String postscript = req.getPostscript();
+					if (postscript != null && !postscript.trim().isEmpty()) {
+						try {
+							fEngine.eval(postscript);
+						} catch (Exception e) {
+							log.error("Postscript error", e);
+							// Append error to response area later
+						}
+					}
+
+					// 8. Display Response
 					StringBuilder sb = new StringBuilder();
 					sb.append("Status: ").append(response.statusCode()).append("\n");
 					sb.append("Headers:\n");
@@ -651,6 +728,99 @@ public class PostmanApp extends JFrame {
 		};
 
 		worker.execute();
+	}
+
+	private Map<String, String> parseProperties(String text) {
+		Map<String, String> map = new HashMap<>();
+		if (text == null || text.isBlank()) {
+			return map;
+		}
+		try (StringReader reader = new StringReader(text)) {
+			Properties props = new Properties();
+			props.load(reader);
+			for (String name : props.stringPropertyNames()) {
+				map.put(name, props.getProperty(name));
+			}
+		} catch (Exception e) {
+			log.error("Failed to parse properties", e);
+		}
+		return map;
+	}
+
+	// --- Scripting Support Classes ---
+
+	public static class PmContext {
+		public PmEnvironment environment;
+		public PmRequest request;
+		public PmResponse response;
+		public Object test; // placeholder
+
+		public PmContext(Map<String, String> env, PostmanRequest req) {
+			this.environment = new PmEnvironment(env);
+			this.request = new PmRequest(req);
+		}
+	}
+
+	public static class PmEnvironment {
+		private final Map<String, String> env;
+
+		public PmEnvironment(Map<String, String> env) {
+			this.env = env;
+		}
+
+		public String get(String key) {
+			return env.get(key);
+		}
+
+		public void set(String key, String value) {
+			env.put(key, value);
+		}
+
+		public Map<String, String> toMap() {
+			return env;
+		}
+	}
+
+	public static class PmRequest {
+		public String url;
+		public String method;
+		public String body;
+		public Map<String, String> headers = new HashMap<>();
+
+		public PmRequest(PostmanRequest req) {
+			this.url = req.getUrl();
+			this.method = req.getMethod();
+			this.body = req.getBody();
+		}
+	}
+
+	public static class PmResponse {
+		public int code;
+		public String status;
+		public String body;
+		public Map<String, String> headers;
+
+		public PmResponse(HttpResponse<String> response) {
+			this.code = response.statusCode();
+			this.status = "OK";
+			this.body = response.body();
+			this.headers = new HashMap<>();
+			response.headers().map().forEach((k, v) -> this.headers.put(k, String.join(",", v)));
+		}
+
+		public Object json() {
+			try {
+				return new com.fasterxml.jackson.databind.ObjectMapper().readValue(body, java.util.Map.class);
+			} catch (Exception e) {
+				return null;
+			}
+		}
+	}
+
+	public static class ConsoleLogger {
+		public void log(Object msg) {
+			System.out.println("[Script Console] " + msg);
+		}
 	}
 
 	private void collectHeaders(PostmanNode node, Map<String, String> headers) {

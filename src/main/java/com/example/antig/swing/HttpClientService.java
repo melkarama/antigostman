@@ -45,6 +45,12 @@ public class HttpClientService {
             case "DELETE":
                 builder.DELETE();
                 break;
+            case "PATCH":
+                builder.method("PATCH", HttpRequest.BodyPublishers.ofString(body));
+                if (!headers.containsKey("Content-Type")) {
+                    builder.header("Content-Type", "application/json");
+                }
+                break;
             default:
                 throw new IllegalArgumentException("Unsupported method: " + method);
         }
