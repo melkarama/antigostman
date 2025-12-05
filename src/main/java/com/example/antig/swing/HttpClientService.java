@@ -18,27 +18,20 @@ public class HttpClientService {
                 .build();
     }
 
-    public HttpResponse<String> sendRequest(String url, String method, String body, java.util.Map<String, String> headers, long timeoutMillis) throws Exception {
+    public HttpResponse<String> sendRequest(String url, String method, String body, java.util.Map<String, String> headers, long timeoutMillis, String httpVersion) throws Exception {
         HttpRequest.Builder builder = HttpRequest.newBuilder()
                 .uri(URI.create(url))
                 .timeout(Duration.ofMillis(timeoutMillis));
 
-        // Determine HTTP version (Default to HTTP/1.1 for compatibility)
+        // Determine HTTP version
         HttpClient.Version version = HttpClient.Version.HTTP_1_1;
-        if (headers != null && headers.containsKey("X-Http-Version")) {
-            String v = headers.get("X-Http-Version");
-            if ("2".equals(v) || "2.0".equals(v)) {
-                version = HttpClient.Version.HTTP_2;
-            }
+        if ("HTTP/2".equalsIgnoreCase(httpVersion)) {
+            version = HttpClient.Version.HTTP_2;
         }
         builder.version(version);
 
         if (headers != null) {
-            headers.forEach((k, v) -> {
-                if (!"X-Http-Version".equalsIgnoreCase(k)) {
-                    builder.header(k, v);
-                }
-            });
+            headers.forEach(builder::header);
         }
 
         // Default to GET if method is null

@@ -79,4 +79,14 @@ public class PostmanRequest extends PostmanNode {
 	public void setTimeout(long timeout) {
 		this.timeout = timeout;
 	}
+	
+	private String httpVersion = "HTTP/1.1";
+
+	public String getHttpVersion() {
+		return httpVersion;
+	}
+
+	public void setHttpVersion(String httpVersion) {
+		this.httpVersion = httpVersion;
+	}
 }

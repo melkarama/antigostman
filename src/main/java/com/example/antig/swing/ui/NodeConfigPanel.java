@@ -526,6 +526,19 @@ public class NodeConfigPanel extends JPanel {
 	}
 
 	/**
+	 * Select the Execution tab if it exists.
+	 */
+	public void selectExecutionTab() {
+		int count = tabbedPane.getTabCount();
+		for (int i = 0; i < count; i++) {
+			if ("Execution".equals(tabbedPane.getTitleAt(i))) {
+				tabbedPane.setSelectedIndex(i);
+				break;
+			}
+		}
+	}
+
+	/**
 	 * Clear all fields.
 	 */
 	private void clearAll() {

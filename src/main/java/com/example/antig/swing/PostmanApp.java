@@ -79,6 +79,7 @@ public class PostmanApp extends JFrame {
 	private JTextField urlField;
 	private JComboBox<String> methodComboBox;
 	private JComboBox<String> bodyTypeComboBox;
+	private JComboBox<String> httpVersionComboBox;
 	private JTextArea requestBodyArea;
 	private JSpinner timeoutSpinner;
 	private JButton sendButton;
@@ -86,7 +87,7 @@ public class PostmanApp extends JFrame {
 
 	private PostmanNode currentNode;
 	private boolean isLoadingNode = false; // Flag to prevent listeners from firing during load
-	
+
 	private File currentProjectFile;
 
 	// Static reference to keep the socket alive
@@ -313,7 +314,6 @@ public class PostmanApp extends JFrame {
 				if (currentNode instanceof PostmanRequest) {
 					PostmanRequest req = (PostmanRequest) currentNode;
 					req.setUrl(urlField.getText());
-					// Don't autosave on every keystroke, let window close or node switch handle it
 				}
 			}
 		});
@@ -335,10 +335,31 @@ public class PostmanApp extends JFrame {
 			}
 		});
 
+		// HTTP Version ComboBox
+		String[] httpVersions = { "HTTP/1.1", "HTTP/2" };
+		httpVersionComboBox = new JComboBox<>(httpVersions);
+		httpVersionComboBox.setToolTipText("HTTP Version");
+		httpVersionComboBox.setPreferredSize(new Dimension(90, 30));
+		httpVersionComboBox.addActionListener(e -> {
+			if (isLoadingNode) {
+				return;
+			}
+			if (currentNode instanceof PostmanRequest) {
+				PostmanRequest req = (PostmanRequest) currentNode;
+				String newVersion = (String) httpVersionComboBox.getSelectedItem();
+				if (newVersion != null && !newVersion.equals(req.getHttpVersion())) {
+					req.setHttpVersion(newVersion);
+					autoSaveProject();
+				}
+			}
+		});
+
 		JPanel leftPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
 		leftPanel.add(methodComboBox);
 		leftPanel.add(Box.createHorizontalStrut(5));
 		leftPanel.add(bodyTypeComboBox);
+		leftPanel.add(Box.createHorizontalStrut(5));
+		leftPanel.add(httpVersionComboBox);
 
 		toolbar.add(leftPanel, BorderLayout.WEST);
 		toolbar.add(urlField, BorderLayout.CENTER);
@@ -389,8 +410,9 @@ public class PostmanApp extends JFrame {
 
 				urlField.setText(req.getUrl());
 				methodComboBox.setSelectedItem(req.getMethod());
-			bodyTypeComboBox.setSelectedItem(req.getBodyType() != null ? req.getBodyType() : "TEXT");
-			timeoutSpinner.setValue(req.getTimeout());
+				bodyTypeComboBox.setSelectedItem(req.getBodyType() != null ? req.getBodyType() : "TEXT");
+				httpVersionComboBox.setSelectedItem(req.getHttpVersion() != null ? req.getHttpVersion() : "HTTP/1.1");
+				timeoutSpinner.setValue(req.getTimeout());
 			
 			// Show request toolbar
 			requestToolbar.setVisible(true);
@@ -426,6 +448,7 @@ public class PostmanApp extends JFrame {
 			req.setUrl(urlField.getText());
 			req.setMethod((String) methodComboBox.getSelectedItem());
 			req.setBodyType((String) bodyTypeComboBox.getSelectedItem());
+			req.setHttpVersion((String) httpVersionComboBox.getSelectedItem());
 			req.setTimeout(((Number)timeoutSpinner.getValue()).longValue());
 			System.out.println("  Saved to model - URL: " + req.getUrl() + ", Method: " + req.getMethod() + ", BodyType: "
 					+ req.getBodyType());
@@ -722,6 +745,7 @@ public class PostmanApp extends JFrame {
 		}
 
 		// 6. Send Request
+		nodeConfigPanel.selectExecutionTab();
 		sendButton.setEnabled(false);
 		nodeConfigPanel.getResponseArea().setText("Sending request...");
 		nodeConfigPanel.setResponseBodySyntax(SyntaxConstants.SYNTAX_STYLE_NONE);
@@ -732,7 +756,7 @@ public class PostmanApp extends JFrame {
 		SwingWorker<HttpResponse<String>, Void> worker = new SwingWorker<>() {
 			@Override
 			protected HttpResponse<String> doInBackground() throws Exception {
-				return httpClientService.sendRequest(req.getUrl(), req.getMethod(), finalBody, finalHeaders, req.getTimeout());
+				return httpClientService.sendRequest(req.getUrl(), req.getMethod(), finalBody, finalHeaders, req.getTimeout(), req.getHttpVersion());
 			}
 
 			@Override
