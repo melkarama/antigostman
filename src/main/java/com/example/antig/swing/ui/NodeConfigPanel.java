@@ -9,12 +9,17 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import javax.swing.JButton;
+import javax.swing.JCheckBox;
+import javax.swing.JFileChooser;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTabbedPane;
 import javax.swing.JTextArea;
+import javax.swing.JToolBar;
 import javax.swing.ScrollPaneConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.event.DocumentEvent;
@@ -29,6 +34,8 @@ import org.fife.ui.rtextarea.RTextScrollPane;
 
 import com.example.antig.swing.model.PostmanNode;
 import com.example.antig.swing.model.PostmanRequest;
+import com.example.antig.swing.service.RecentProjectsManager;
+import java.io.File;
 
 /**
  * Tabbed panel for configuring nodes (Collection, Folder, Request).
@@ -61,6 +68,11 @@ public class NodeConfigPanel extends JPanel {
 	private RSyntaxTextArea responseBodyArea;
 
 	private PostmanNode currentNode;
+	private RecentProjectsManager recentProjectsManager;
+
+	public void setRecentProjectsManager(RecentProjectsManager recentProjectsManager) {
+		this.recentProjectsManager = recentProjectsManager;
+	}
 
 	// Map to store caret positions per node (nodeId -> areaKey -> caretPos)
 	private final Map<String, Map<String, Integer>> nodeCaretMap = new HashMap<>();
@@ -328,7 +340,38 @@ public class NodeConfigPanel extends JPanel {
 
 		// Tab 4: Response Body
 		responseBodyArea = createReadOnlySyntaxTextArea();
-		executionTabbedPane.addTab("Response Body", new RTextScrollPane(responseBodyArea));
+		
+		JPanel responseBodyPanel = new JPanel(new BorderLayout());
+		JToolBar responseToolbar = new JToolBar();
+		responseToolbar.setFloatable(false);
+		
+		JButton saveButton = new JButton("Save");
+		JButton copyButton = new JButton("Copy to Clipboard");
+		JButton clearButton = new JButton("Clear");
+		JCheckBox openAfterSave = new JCheckBox("Open after save");
+		
+		saveButton.addActionListener(e -> saveResponseBody(openAfterSave.isSelected()));
+		
+		copyButton.addActionListener(e -> {
+			responseBodyArea.selectAll();
+			responseBodyArea.copy();
+			responseBodyArea.setCaretPosition(0);
+		});
+		
+		clearButton.addActionListener(e -> {
+			responseBodyArea.setText("");
+			setResponseBodySyntax(SyntaxConstants.SYNTAX_STYLE_NONE);
+		});
+		
+		responseToolbar.add(copyButton);
+		responseToolbar.add(clearButton);
+		responseToolbar.add(saveButton);
+		responseToolbar.add(openAfterSave);
+		
+		responseBodyPanel.add(responseToolbar, BorderLayout.NORTH);
+		responseBodyPanel.add(new RTextScrollPane(responseBodyArea), BorderLayout.CENTER);
+		
+		executionTabbedPane.addTab("Response Body", responseBodyPanel);
 
 		// Keep reference to old responseArea for backward compatibility
 		responseArea = responseBodyArea;
@@ -611,6 +654,36 @@ public class NodeConfigPanel extends JPanel {
 	public void setResponseBodySyntax(String style) {
 		if (responseBodyArea != null) {
 			responseBodyArea.setSyntaxEditingStyle(style);
+		}
+	}
+
+	private void saveResponseBody(boolean openAfterSave) {
+		JFileChooser fileChooser = new JFileChooser();
+		if (recentProjectsManager != null) {
+			String lastDir = recentProjectsManager.getLastSaveDirectory();
+			if (lastDir != null) {
+				fileChooser.setCurrentDirectory(new File(lastDir));
+			}
+		}
+
+		if (fileChooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
+			File file = fileChooser.getSelectedFile();
+			try {
+				// Save file
+				java.nio.file.Files.writeString(file.toPath(), responseBodyArea.getText());
+
+				// Save directory
+				if (recentProjectsManager != null) {
+					recentProjectsManager.setLastSaveDirectory(file.getParent());
+				}
+
+				// Open if requested
+				if (openAfterSave) {
+					java.awt.Desktop.getDesktop().open(file);
+				}
+			} catch (Exception e) {
+				JOptionPane.showMessageDialog(this, "Error saving file: " + e.getMessage());
+			}
 		}
 	}
 }

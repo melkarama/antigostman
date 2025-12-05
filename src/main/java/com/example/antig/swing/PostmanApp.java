@@ -238,6 +238,7 @@ public class PostmanApp extends JFrame {
 		// Center: Tabbed configuration panel
 		nodeConfigPanel = new NodeConfigPanel();
 		nodeConfigPanel.setAutoSaveCallback(this::autoSaveProject);
+		nodeConfigPanel.setRecentProjectsManager(recentProjectsManager);
 		rightPanel.add(nodeConfigPanel, BorderLayout.CENTER);
 
 		mainSplitPane.setRightComponent(rightPanel);
@@ -1013,13 +1014,28 @@ public class PostmanApp extends JFrame {
 		collectionFileMap.put(loadedCollection, file);
 
 		// Restore expansion state
-		restoreExpansionFromIds(loadedCollection, expandedIds);
+		// restoreExpansionFromIds(loadedCollection, expandedIds);
+		
+		// Expand whole tree (User request)
+		expandAllNodes(projectTree, new TreePath(loadedCollection.getPath()));
 
 		// Scroll to collection
 		TreePath path = new TreePath(loadedCollection.getPath());
 		projectTree.scrollPathToVisible(path);
 
 		return loadedCollection;
+	}
+
+	private void expandAllNodes(JTree tree, TreePath parent) {
+		TreeNode node = (TreeNode) parent.getLastPathComponent();
+		if (node.getChildCount() >= 0) {
+			for (java.util.Enumeration<?> e = node.children(); e.hasMoreElements();) {
+				TreeNode n = (TreeNode) e.nextElement();
+				TreePath path = parent.pathByAddingChild(n);
+				expandAllNodes(tree, path);
+			}
+		}
+		tree.expandPath(parent);
 	}
 
 	private void restoreWorkspace() {
@@ -1197,6 +1213,15 @@ public class PostmanApp extends JFrame {
 		boolean isDark = "dark".equals(currentTheme);
 
 		try {
+			// Capture expansion state
+			java.util.Enumeration<TreePath> expandedPaths = projectTree.getExpandedDescendants(new TreePath(workspaceRoot.getPath()));
+			java.util.List<TreePath> pathsToRestore = new java.util.ArrayList<>();
+			if (expandedPaths != null) {
+				while (expandedPaths.hasMoreElements()) {
+					pathsToRestore.add(expandedPaths.nextElement());
+				}
+			}
+
 			if (isDark) {
 				com.formdev.flatlaf.FlatLightLaf.setup();
 				recentProjectsManager.setThemePreference("light");
@@ -1210,6 +1235,11 @@ public class PostmanApp extends JFrame {
 
 			// Refresh tree to apply new theme
 			treeModel.reload();
+
+			// Restore expansion state
+			for (TreePath path : pathsToRestore) {
+				projectTree.expandPath(path);
+			}
 
 		} catch (Exception e) {
 			e.printStackTrace();

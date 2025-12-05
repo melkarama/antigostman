@@ -16,12 +16,30 @@ public class RecentProjectsManager {
     private static final String RECENT_KEY_PREFIX = "recent.";
     private static final String OPEN_PROJECT_KEY_PREFIX = "open.project.";
     private static final String THEME_KEY = "theme";
+    private static final String LAST_SAVE_DIR_KEY = "last.save.dir";
     private static final int MAX_RECENT = 10;
     
     private final List<String> recentProjects = new ArrayList<>();
     
     public RecentProjectsManager() {
         loadRecentProjects();
+    }
+
+    /**
+     * Get the last directory used for saving files.
+     */
+    public String getLastSaveDirectory() {
+        Properties props = loadProperties();
+        return props.getProperty(LAST_SAVE_DIR_KEY);
+    }
+
+    /**
+     * Set the last directory used for saving files.
+     */
+    public void setLastSaveDirectory(String path) {
+        Properties props = loadProperties();
+        props.setProperty(LAST_SAVE_DIR_KEY, path);
+        saveProperties(props);
     }
     
     /**
