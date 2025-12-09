@@ -128,7 +128,7 @@ public class NodeConfigPanel extends JPanel {
 		area.setTabSize(2);
 		area.setCodeFoldingEnabled(true);
 		area.setAntiAliasingEnabled(true);
-		// Focus listener to trigger autosave on loss
+		// Document listener to trigger autosave on change
 		area.getDocument().addDocumentListener(new DocumentListener() {
 			@Override
 			public void insertUpdate(DocumentEvent e) {
