@@ -110,7 +110,7 @@ public class PostmanApp extends JFrame {
 		this.recentProjectsManager = new RecentProjectsManager();
 		this.objectMapper = new ObjectMapper();
 
-		setTitle("Swing Postman Clone");
+		updateTitle();
 		setSize(1000, 700);
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		setLocationRelativeTo(null);
@@ -1034,6 +1034,16 @@ public class PostmanApp extends JFrame {
 		}
 	}
 
+	private void updateTitle() {
+		if (currentProjectFile != null) {
+			setTitle(currentProjectFile.getAbsolutePath());
+		} else if (rootCollection != null) {
+			setTitle("Swing Postman Clone - " + rootCollection.getName());
+		} else {
+			setTitle("Swing Postman Clone");
+		}
+	}
+
 	private void saveProject() {
 		if (currentProjectFile == null) {
 			JFileChooser fileChooser = new JFileChooser();
@@ -1062,7 +1072,7 @@ public class PostmanApp extends JFrame {
 			recentProjectsManager.addRecentProject(currentProjectFile);
 			updateRecentProjectsMenu((JMenu) getJMenuBar().getMenu(0).getMenuComponent(4));
 			// Update title bar with saved file path
-			setTitle(currentProjectFile.getAbsolutePath());
+			updateTitle();
 		} catch (Exception e) {
 			e.printStackTrace();
 			JOptionPane.showMessageDialog(this, "Error saving: " + e.getMessage());
@@ -1089,7 +1099,7 @@ public class PostmanApp extends JFrame {
 
 			updateOpenProjectsList();
 
-			setTitle(file.getAbsolutePath());
+			updateTitle();
 
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -1159,6 +1169,7 @@ public class PostmanApp extends JFrame {
 			if (file.exists()) {
 				try {
 					loadProjectInternal(file);
+					updateTitle();
 				} catch (Exception e) {
 //					System.err.println("Failed to restore project " + file + ": " + e.getMessage());
 					e.printStackTrace();
@@ -1240,7 +1251,7 @@ public class PostmanApp extends JFrame {
 			currentProjectFile = null;
 			currentNode = null;
 			nodeConfigPanel.loadNode(null);
-			setTitle("Swing Postman Clone - " + name);
+			updateTitle();
 			treeModel.reload();
 		}
 	}
