@@ -76,13 +76,8 @@ public class NodeConfigPanel extends JPanel {
 
 	// Map to store caret positions per node (nodeId -> areaKey -> caretPos)
 	private final Map<String, Map<String, Integer>> nodeCaretMap = new HashMap<>();
-	// Callback invoked when any input loses focus – used to trigger autosave in the
-	// main app
-	private Runnable autoSaveCallback;
 
-	public void setAutoSaveCallback(Runnable callback) {
-		this.autoSaveCallback = callback;
-	}
+
 
 	public NodeConfigPanel() {
 		setLayout(new BorderLayout());
@@ -115,13 +110,6 @@ public class NodeConfigPanel extends JPanel {
 		tabbedPane.addChangeListener(e -> {
 			if (currentNode != null) {
 				currentNode.setSelectedTabIndex(tabbedPane.getSelectedIndex());
-				// Trigger autosave if needed, though usually autosave is on content change
-				// We might want to just update the model in memory and let autosave happen
-				// later
-				// or trigger it explicitly. For now, let's just update the model.
-				if (autoSaveCallback != null) {
-//					autoSaveCallback.run();
-				}
 			}
 		});
 
@@ -136,14 +124,20 @@ public class NodeConfigPanel extends JPanel {
 		area.setCodeFoldingEnabled(true);
 		area.setAntiAliasingEnabled(true);
 		// Focus listener to trigger autosave on loss
-		area.addFocusListener(new java.awt.event.FocusAdapter() {
+		area.getDocument().addDocumentListener(new DocumentListener() {
 			@Override
-			public void focusLost(java.awt.event.FocusEvent e) {
-				// Save current UI data before autosave
+			public void insertUpdate(DocumentEvent e) {
 				saveNode();
-				if (autoSaveCallback != null) {
-//					autoSaveCallback.run();
-				}
+			}
+
+			@Override
+			public void removeUpdate(DocumentEvent e) {
+				saveNode();
+			}
+
+			@Override
+			public void changedUpdate(DocumentEvent e) {
+				saveNode();
 			}
 		});
 		return area;
@@ -202,32 +196,24 @@ public class NodeConfigPanel extends JPanel {
 		AutoCompletion ac = new AutoCompletion(provider);
 		ac.install(textArea);
 
-		// Dynamic completion update
+		// Focus listener for autosave
 		textArea.getDocument().addDocumentListener(new DocumentListener() {
 			@Override
 			public void insertUpdate(DocumentEvent e) {
 				updateCompletions(textArea, provider);
+				saveNode();
 			}
 
 			@Override
 			public void removeUpdate(DocumentEvent e) {
 				updateCompletions(textArea, provider);
+				saveNode();
 			}
 
 			@Override
 			public void changedUpdate(DocumentEvent e) {
 				updateCompletions(textArea, provider);
-			}
-		});
-		// Focus listener for autosave
-		textArea.addFocusListener(new java.awt.event.FocusAdapter() {
-			@Override
-			public void focusLost(java.awt.event.FocusEvent e) {
-				// Save current UI data before autosave
 				saveNode();
-				if (autoSaveCallback != null) {
-//					autoSaveCallback.run();
-				}
 			}
 		});
 
@@ -294,13 +280,20 @@ public class NodeConfigPanel extends JPanel {
 		textArea.setWrapStyleWord(true);
 
 		// Focus listener for autosave
-		textArea.addFocusListener(new java.awt.event.FocusAdapter() {
+		textArea.getDocument().addDocumentListener(new DocumentListener() {
 			@Override
-			public void focusLost(java.awt.event.FocusEvent e) {
+			public void insertUpdate(DocumentEvent e) {
 				saveNode();
-				if (autoSaveCallback != null) {
-//                    autoSaveCallback.run();
-				}
+			}
+
+			@Override
+			public void removeUpdate(DocumentEvent e) {
+				saveNode();
+			}
+
+			@Override
+			public void changedUpdate(DocumentEvent e) {
+				saveNode();
 			}
 		});
 		return textArea;

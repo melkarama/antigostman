@@ -189,13 +189,11 @@ public class PostmanApp extends JFrame {
 			@Override
 			public void treeExpanded(javax.swing.event.TreeExpansionEvent event) {
 //				saveTreeExpansionState();
-//				autoSaveProject();
 			}
 
 			@Override
 			public void treeCollapsed(javax.swing.event.TreeExpansionEvent event) {
 //				saveTreeExpansionState();
-//				autoSaveProject();
 			}
 		});
 
@@ -239,7 +237,7 @@ public class PostmanApp extends JFrame {
 
 		// Center: Tabbed configuration panel
 		nodeConfigPanel = new NodeConfigPanel();
-		nodeConfigPanel.setAutoSaveCallback(this::autoSaveProject);
+		// nodeConfigPanel.setAutoSaveCallback(this::autoSaveProject); // Autosave disabled
 		nodeConfigPanel.setRecentProjectsManager(recentProjectsManager);
 		rightPanel.add(nodeConfigPanel, BorderLayout.CENTER);
 
@@ -270,7 +268,7 @@ public class PostmanApp extends JFrame {
 					req.setMethod(newMethod);
 					// Notify tree model of change to trigger repaint (icon update)
 					treeModel.nodeChanged(req);
-					autoSaveProject();
+					// autoSaveProject();
 				}
 			}
 		});
@@ -288,7 +286,7 @@ public class PostmanApp extends JFrame {
 				if (newType != null && !newType.equals(req.getBodyType())) {
 					req.setBodyType(newType);
 					nodeConfigPanel.setBodySyntax(newType);
-					autoSaveProject();
+					// autoSaveProject();
 				}
 			}
 		});
@@ -331,7 +329,7 @@ public class PostmanApp extends JFrame {
 			if (currentNode instanceof PostmanRequest) {
 				PostmanRequest req = (PostmanRequest) currentNode;
 				req.setTimeout(((Number)timeoutSpinner.getValue()).longValue());
-				autoSaveProject();
+				// autoSaveProject();
 			}
 		});
 
@@ -349,7 +347,7 @@ public class PostmanApp extends JFrame {
 				String newVersion = (String) httpVersionComboBox.getSelectedItem();
 				if (newVersion != null && !newVersion.equals(req.getHttpVersion())) {
 					req.setHttpVersion(newVersion);
-					autoSaveProject();
+					// autoSaveProject();
 				}
 			}
 		});
@@ -389,8 +387,8 @@ public class PostmanApp extends JFrame {
 		System.out.println("Switching TO: " + node.getName() + " (" + node.getClass().getSimpleName() + ")");
 
 		// Save current state before switching
-//		saveCurrentNodeState();
-//		autoSaveProject(); // Autosave when switching nodes
+		saveCurrentNodeState();
+		// autoSaveProject(); // Autosave when switching nodes
 
 		currentNode = node;
 
@@ -468,7 +466,7 @@ public class PostmanApp extends JFrame {
 			if (node == currentNode) {
 				onNodeSelected(); // Refresh UI label
 			}
-			autoSaveProject();
+			// autoSaveProject();
 		}
 	}
 
@@ -527,7 +525,7 @@ public class PostmanApp extends JFrame {
 		TreePath path = new TreePath(child.getPath());
 		projectTree.scrollPathToVisible(path);
 		projectTree.setSelectionPath(path);
-		autoSaveProject();
+		// autoSaveProject();
 	}
 
 	private void deleteSelectedNode() {
@@ -564,7 +562,7 @@ public class PostmanApp extends JFrame {
 			}
 
 			// Autosave
-			autoSaveProject();
+			// autoSaveProject();
 		} else {
 			JOptionPane.showMessageDialog(this, "Cannot delete the root project.");
 		}
@@ -604,10 +602,11 @@ public class PostmanApp extends JFrame {
 				TreePath path = new TreePath(clone.getPath());
 				projectTree.setSelectionPath(path);
 				projectTree.scrollPathToVisible(path);
+				projectTree.scrollPathToVisible(path);
 			} else {
 				JOptionPane.showMessageDialog(this, "Cannot clone the root node.");
 			}
-			autoSaveProject();
+			// autoSaveProject();
 		} catch (Exception e) {
 			e.printStackTrace();
 			JOptionPane.showMessageDialog(this, "Clone failed: " + e.getMessage());
@@ -1258,7 +1257,7 @@ public class PostmanApp extends JFrame {
 				projectTree.setSelectionPath(new TreePath(draggedNode.getPath()));
 
 				// Autosave
-				autoSaveProject();
+				// autoSaveProject();
 
 				return true;
 			} catch (Exception e) {
