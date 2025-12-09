@@ -4,6 +4,7 @@ import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
+import java.awt.Font;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.File;
@@ -35,6 +36,7 @@ import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
 import javax.swing.JSplitPane;
+import javax.swing.JTabbedPane;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.JTree;
@@ -64,8 +66,6 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class PostmanApp extends JFrame {
 
-
-
 	private final HttpClientService httpClientService;
 	private final ProjectService projectService;
 	private final RecentProjectsManager recentProjectsManager;
@@ -82,7 +82,12 @@ public class PostmanApp extends JFrame {
 	private JTextField urlField;
 	private JComboBox<String> methodComboBox;
 	private JComboBox<String> bodyTypeComboBox;
-	private JComboBox<String> httpVersionComboBox;
+	private JComboBox<String> httpVersionComboBox; // New HTTP version selector
+
+	// Console components
+	private JTextArea consoleTextArea;
+	private JTabbedPane consoleTabbedPane;
+	private JSplitPane verticalSplitPane;
 	private JTextArea requestBodyArea;
 	private JSpinner timeoutSpinner;
 	private JButton sendButton;
@@ -111,6 +116,7 @@ public class PostmanApp extends JFrame {
 
 		initMenu();
 		initComponents();
+		initConsole();
 
 		// Load last opened project
 		SwingUtilities.invokeLater(this::restoreWorkspace);
@@ -156,6 +162,17 @@ public class PostmanApp extends JFrame {
 		viewMenu.add(toggleThemeItem);
 
 		menuBar.add(viewMenu);
+
+		// Console menu items
+		viewMenu.addSeparator();
+		JMenuItem toggleConsoleItem = new JMenuItem("Toggle Console");
+		toggleConsoleItem.addActionListener(e -> toggleConsole());
+		viewMenu.add(toggleConsoleItem);
+
+		JMenuItem clearConsoleItem = new JMenuItem("Clear Console");
+		clearConsoleItem.addActionListener(e -> clearConsole());
+		viewMenu.add(clearConsoleItem);
+
 		setJMenuBar(menuBar);
 	}
 
@@ -246,7 +263,22 @@ public class PostmanApp extends JFrame {
 		rightPanel.add(nodeConfigPanel, BorderLayout.CENTER);
 
 		mainSplitPane.setRightComponent(rightPanel);
-		add(mainSplitPane, BorderLayout.CENTER);
+		mainSplitPane.setRightComponent(rightPanel);
+
+		// Console Panel (Bottom)
+		consoleTabbedPane = new JTabbedPane();
+		consoleTextArea = new JTextArea();
+		consoleTextArea.setEditable(false);
+		consoleTextArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
+		consoleTabbedPane.addTab("Console", new JScrollPane(consoleTextArea));
+
+		// Vertical Split Pane
+		verticalSplitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
+		verticalSplitPane.setResizeWeight(0.8); // 80% for main content
+		verticalSplitPane.setTopComponent(mainSplitPane);
+		verticalSplitPane.setBottomComponent(consoleTabbedPane);
+
+		add(verticalSplitPane, BorderLayout.CENTER);
 	}
 
 	private JPanel createRequestToolbar() {
@@ -257,18 +289,18 @@ public class PostmanApp extends JFrame {
 		methodComboBox = new JComboBox<>(methods);
 		methodComboBox.setPreferredSize(new Dimension(100, 30));
 		methodComboBox.addActionListener(e -> {
-			System.out.println("Method combo action listener fired. isLoadingNode=" + isLoadingNode);
+//			System.out.println("Method combo action listener fired. isLoadingNode=" + isLoadingNode);
 			if (isLoadingNode) {
-				System.out.println("  Skipping because isLoadingNode=true");
+//				System.out.println("  Skipping because isLoadingNode=true");
 				return; // Skip during load
 			}
 			if (currentNode instanceof PostmanRequest) {
 				PostmanRequest req = (PostmanRequest) currentNode;
 				String newMethod = (String) methodComboBox.getSelectedItem();
-				System.out.println("  Current method in model: " + req.getMethod());
-				System.out.println("  New method from combo: " + newMethod);
+//				System.out.println("  Current method in model: " + req.getMethod());
+//				System.out.println("  New method from combo: " + newMethod);
 				if (newMethod != null && !newMethod.equals(req.getMethod())) {
-					System.out.println("  CHANGING method from " + req.getMethod() + " to " + newMethod);
+//					System.out.println("  CHANGING method from " + req.getMethod() + " to " + newMethod);
 					req.setMethod(newMethod);
 					// Notify tree model of change to trigger repaint (icon update)
 					treeModel.nodeChanged(req);
@@ -387,10 +419,10 @@ public class PostmanApp extends JFrame {
 			return;
 		}
 
-		System.out.println("=== onNodeSelected ===");
-		System.out.println("Switching FROM: "
-				+ (currentNode != null ? currentNode.getName() + " (" + currentNode.getClass().getSimpleName() + ")" : "null"));
-		System.out.println("Switching TO: " + node.getName() + " (" + node.getClass().getSimpleName() + ")");
+//		System.out.println("=== onNodeSelected ===");
+//		System.out.println("Switching FROM: "
+//				+ (currentNode != null ? currentNode.getName() + " (" + currentNode.getClass().getSimpleName() + ")" : "null"));
+//		System.out.println("Switching TO: " + node.getName() + " (" + node.getClass().getSimpleName() + ")");
 
 		// Save current state before switching
 		saveCurrentNodeState();
@@ -407,10 +439,10 @@ public class PostmanApp extends JFrame {
 			// Show/hide request toolbar and load request-specific fields
 			if (node instanceof PostmanRequest) {
 				PostmanRequest req = (PostmanRequest) node;
-				System.out.println("Loading request: " + req.getName());
-				System.out.println("  URL: " + req.getUrl());
-				System.out.println("  Method: " + req.getMethod());
-				System.out.println("  BodyType: " + req.getBodyType());
+//				System.out.println("Loading request: " + req.getName());
+//				System.out.println("  URL: " + req.getUrl());
+//				System.out.println("  Method: " + req.getMethod());
+//				System.out.println("  BodyType: " + req.getBodyType());
 
 				urlField.setText(req.getUrl());
 				methodComboBox.setSelectedItem(req.getMethod());
@@ -445,17 +477,17 @@ public class PostmanApp extends JFrame {
 		// Save request-specific toolbar fields
 		if (currentNode instanceof PostmanRequest) {
 			PostmanRequest req = (PostmanRequest) currentNode;
-			System.out.println("Saving request state:");
-			System.out.println("  URL from field: " + urlField.getText());
-			System.out.println("  Method from combo: " + methodComboBox.getSelectedItem());
-			System.out.println("  BodyType from combo: " + bodyTypeComboBox.getSelectedItem());
+//			System.out.println("Saving request state:");
+//			System.out.println("  URL from field: " + urlField.getText());
+//			System.out.println("  Method from combo: " + methodComboBox.getSelectedItem());
+//			System.out.println("  BodyType from combo: " + bodyTypeComboBox.getSelectedItem());
 			req.setUrl(urlField.getText());
 			req.setMethod((String) methodComboBox.getSelectedItem());
 			req.setBodyType((String) bodyTypeComboBox.getSelectedItem());
 			req.setHttpVersion((String) httpVersionComboBox.getSelectedItem());
 			req.setTimeout(((Number) timeoutSpinner.getValue()).longValue());
-			System.out.println("  Saved to model - URL: " + req.getUrl() + ", Method: " + req.getMethod() + ", BodyType: "
-					+ req.getBodyType());
+//			System.out.println("  Saved to model - URL: " + req.getUrl() + ", Method: " + req.getMethod() + ", BodyType: "
+//					+ req.getBodyType());
 		}
 	}
 
@@ -643,7 +675,7 @@ public class PostmanApp extends JFrame {
 		Map<String, String> parentEnvMap = parent == null ? Map.of() : createEnv((PostmanNode) parent);
 
 		TreeMap<String, String> map = new TreeMap<>();
-		
+
 		// 1. Global Variables (Base) - Only if root
 		if (node instanceof PostmanCollection && node.getParent() == null) {
 			Map<String, String> globals = ((PostmanCollection) node).getGlobalVariables();
@@ -654,7 +686,7 @@ public class PostmanApp extends JFrame {
 
 		// 2. Parent Environment (Inherited)
 		map.putAll(parentEnvMap);
-		
+
 		// 3. Node Environment (Specific)
 		map.putAll(node.getEnvironment());
 
@@ -1082,11 +1114,12 @@ public class PostmanApp extends JFrame {
 				try {
 					loadProjectInternal(file);
 				} catch (Exception e) {
-					System.err.println("Failed to restore project " + file + ": " + e.getMessage());
+//					System.err.println("Failed to restore project " + file + ": " + e.getMessage());
 					e.printStackTrace();
 				}
 			}
 		}
+
 	}
 
 	private void expandAllNodes() {
@@ -1139,7 +1172,7 @@ public class PostmanApp extends JFrame {
 			try {
 				// Save using ProjectService
 				projectService.saveProject(rootCollection, currentProjectFile, expandedIds);
-				System.out.println("Autosaved " + rootCollection.getName() + " to " + currentProjectFile.getAbsolutePath());
+//				System.out.println("Autosaved " + rootCollection.getName() + " to " + currentProjectFile.getAbsolutePath());
 			} catch (Exception e) {
 				System.err.println("Autosave failed: " + e.getMessage());
 				e.printStackTrace();
@@ -1385,5 +1418,48 @@ public class PostmanApp extends JFrame {
 			}
 		}
 		SwingUtilities.invokeLater(() -> new PostmanApp().setVisible(true));
+	}
+
+	private void initConsole() {
+		java.io.PrintStream printStream = new java.io.PrintStream(new ConsoleOutputStream(consoleTextArea));
+		System.setOut(printStream);
+		System.setErr(printStream);
+	}
+
+	private void toggleConsole() {
+		boolean isVisible = consoleTabbedPane.isVisible();
+		consoleTabbedPane.setVisible(!isVisible);
+		if (!isVisible) {
+			verticalSplitPane.setDividerLocation(0.8);
+		}
+	}
+
+	private void clearConsole() {
+		consoleTextArea.setText("");
+	}
+
+	private class ConsoleOutputStream extends java.io.OutputStream {
+		private final JTextArea textArea;
+
+		public ConsoleOutputStream(JTextArea textArea) {
+			this.textArea = textArea;
+		}
+
+		@Override
+		public void write(int b) throws java.io.IOException {
+			SwingUtilities.invokeLater(() -> {
+				textArea.append(String.valueOf((char) b));
+				textArea.setCaretPosition(textArea.getDocument().getLength());
+			});
+		}
+
+		@Override
+		public void write(byte[] b, int off, int len) throws java.io.IOException {
+			String s = new String(b, off, len);
+			SwingUtilities.invokeLater(() -> {
+				textArea.append(s);
+				textArea.setCaretPosition(textArea.getDocument().getLength());
+			});
+		}
 	}
 }
