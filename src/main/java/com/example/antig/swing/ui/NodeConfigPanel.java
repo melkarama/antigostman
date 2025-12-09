@@ -2,8 +2,9 @@ package com.example.antig.swing.ui;
 
 import java.awt.BorderLayout;
 import java.awt.Font;
-import java.util.HashMap;
+import java.io.File;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -15,7 +16,6 @@ import javax.swing.JFileChooser;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
-import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTabbedPane;
 import javax.swing.JTextArea;
@@ -35,7 +35,6 @@ import org.fife.ui.rtextarea.RTextScrollPane;
 import com.example.antig.swing.model.PostmanNode;
 import com.example.antig.swing.model.PostmanRequest;
 import com.example.antig.swing.service.RecentProjectsManager;
-import java.io.File;
 
 /**
  * Tabbed panel for configuring nodes (Collection, Folder, Request).
@@ -77,9 +76,7 @@ public class NodeConfigPanel extends JPanel {
 	}
 
 	// Map to store caret positions per node (nodeId -> areaKey -> caretPos)
-	private final Map<String, Map<String, Integer>> nodeCaretMap = new HashMap<>();
-
-
+	private final Map<String, Map<String, Integer>> nodeCaretMap = new LinkedHashMap<>();
 
 	public NodeConfigPanel() {
 		setLayout(new BorderLayout());
@@ -152,7 +149,7 @@ public class NodeConfigPanel extends JPanel {
 	 * Save caret positions for the given node ID.
 	 */
 	private void saveCaretPositions(String nodeId) {
-		Map<String, Integer> caretMap = new HashMap<>();
+		Map<String, Integer> caretMap = new LinkedHashMap<>();
 		caretMap.put("env", environmentArea.getCaretPosition());
 		caretMap.put("headers", headersArea.getCaretPosition());
 		caretMap.put("prescript", prescriptArea.getCaretPosition());
@@ -349,7 +346,8 @@ public class NodeConfigPanel extends JPanel {
 
 		// Tab 4: Response Body
 		responseBodyArea = createReadOnlySyntaxTextArea();
-		executionTabbedPane.addTab("Response Body", createTabWithToolbar(responseBodyArea, () -> setResponseBodySyntax(SyntaxConstants.SYNTAX_STYLE_NONE)));
+		executionTabbedPane.addTab("Response Body",
+				createTabWithToolbar(responseBodyArea, () -> setResponseBodySyntax(SyntaxConstants.SYNTAX_STYLE_NONE)));
 
 		// Keep reference to old responseArea for backward compatibility
 		responseArea = responseBodyArea;
@@ -379,100 +377,100 @@ public class NodeConfigPanel extends JPanel {
 		try {
 			this.currentNode = node;
 
-		if (node == null) {
-			clearAll();
-			return;
-		}
+			if (node == null) {
+				clearAll();
+				return;
+			}
 
-		// Load environment (convert map to properties format)
-		environmentArea.setText(mapToProperties(node.getEnvironment()));
+			// Load environment (convert map to properties format)
+			environmentArea.setText(mapToProperties(node.getEnvironment()));
 
-		// Load headers (convert map to properties format)
-		headersArea.setText(mapToProperties(node.getHeaders()));
+			// Load headers (convert map to properties format)
+			headersArea.setText(mapToProperties(node.getHeaders()));
 
-		// Restore caret positions for this node
-		restoreCaretPositions(node.getId());
+			// Restore caret positions for this node
+			restoreCaretPositions(node.getId());
 
-		// Load scripts
-		prescriptArea.setText(node.getPrescript() != null ? node.getPrescript() : "");
-		postscriptArea.setText(node.getPostscript() != null ? node.getPostscript() : "");
+			// Load scripts
+			prescriptArea.setText(node.getPrescript() != null ? node.getPrescript() : "");
+			postscriptArea.setText(node.getPostscript() != null ? node.getPostscript() : "");
 
-		// Handle Global Variables tab for root node
-		if (node instanceof com.example.antig.swing.model.PostmanCollection && node.getParent() == null) {
-			// It's the root collection
-			// It's the root collection
-			boolean tabExists = false;
-			for (int i = 0; i < tabbedPane.getTabCount(); i++) {
-				if ("Global Variables".equals(tabbedPane.getTitleAt(i))) {
-					tabExists = true;
-					break;
+			// Handle Global Variables tab for root node
+			if (node instanceof com.example.antig.swing.model.PostmanCollection && node.getParent() == null) {
+				// It's the root collection
+				// It's the root collection
+				boolean tabExists = false;
+				for (int i = 0; i < tabbedPane.getTabCount(); i++) {
+					if ("Global Variables".equals(tabbedPane.getTitleAt(i))) {
+						tabExists = true;
+						break;
+					}
+				}
+
+				if (!tabExists) {
+					tabbedPane.addTab("Global Variables", new RTextScrollPane(globalVarsArea));
+				}
+				com.example.antig.swing.model.PostmanCollection col = (com.example.antig.swing.model.PostmanCollection) node;
+				globalVarsArea.setText(mapToProperties(col.getGlobalVariables()));
+			} else {
+				// Remove Global Variables tab if present
+				for (int i = 0; i < tabbedPane.getTabCount(); i++) {
+					if ("Global Variables".equals(tabbedPane.getTitleAt(i))) {
+						tabbedPane.removeTabAt(i);
+						break;
+					}
 				}
 			}
-			
-			if (!tabExists) {
-				tabbedPane.addTab("Global Variables", new RTextScrollPane(globalVarsArea));
-			}
-			com.example.antig.swing.model.PostmanCollection col = (com.example.antig.swing.model.PostmanCollection) node;
-			globalVarsArea.setText(mapToProperties(col.getGlobalVariables()));
-		} else {
-			// Remove Global Variables tab if present
-			for (int i = 0; i < tabbedPane.getTabCount(); i++) {
-				if ("Global Variables".equals(tabbedPane.getTitleAt(i))) {
-					tabbedPane.removeTabAt(i);
-					break;
+
+			// Show/hide execution tab based on node type
+			if (node instanceof PostmanRequest) {
+				// Add execution tab if not present
+				if (tabbedPane.indexOfComponent(executionPanel) == -1) {
+					tabbedPane.addTab("Execution", executionPanel);
+				}
+
+				PostmanRequest request = (PostmanRequest) node;
+				bodyArea.setText(request.getBody() != null ? request.getBody() : "");
+				setBodySyntax(request.getBodyType());
+
+				// Clear execution tabs
+				if (requestHeadersArea != null) {
+					requestHeadersArea.setText("");
+				}
+				if (requestBodyArea != null) {
+					requestBodyArea.setText("");
+				}
+				if (responseHeadersArea != null) {
+					responseHeadersArea.setText("");
+				}
+				if (responseBodyArea != null) {
+					responseBodyArea.setText("");
+				}
+
+				// Restore execution tab index
+				if (executionTabbedPane != null) {
+					int execTabIndex = request.getExecutionTabIndex();
+					if (execTabIndex >= 0 && execTabIndex < executionTabbedPane.getTabCount()) {
+						executionTabbedPane.setSelectedIndex(execTabIndex);
+					} else {
+						executionTabbedPane.setSelectedIndex(0);
+					}
+				}
+			} else {
+				// Remove execution tab if present
+				int index = tabbedPane.indexOfComponent(executionPanel);
+				if (index != -1) {
+					tabbedPane.removeTabAt(index);
 				}
 			}
-		}
 
-		// Show/hide execution tab based on node type
-		if (node instanceof PostmanRequest) {
-			// Add execution tab if not present
-			if (tabbedPane.indexOfComponent(executionPanel) == -1) {
-				tabbedPane.addTab("Execution", executionPanel);
+			// Restore selected tab index
+			int savedIndex = node.getSelectedTabIndex();
+			if (savedIndex >= 0 && savedIndex < tabbedPane.getTabCount()) {
+				tabbedPane.setSelectedIndex(savedIndex);
+			} else {
+				tabbedPane.setSelectedIndex(0);
 			}
-
-			PostmanRequest request = (PostmanRequest) node;
-			bodyArea.setText(request.getBody() != null ? request.getBody() : "");
-			setBodySyntax(request.getBodyType());
-
-			// Clear execution tabs
-			if (requestHeadersArea != null) {
-				requestHeadersArea.setText("");
-			}
-			if (requestBodyArea != null) {
-				requestBodyArea.setText("");
-			}
-			if (responseHeadersArea != null) {
-				responseHeadersArea.setText("");
-			}
-			if (responseBodyArea != null) {
-				responseBodyArea.setText("");
-			}
-
-			// Restore execution tab index
-			if (executionTabbedPane != null) {
-				int execTabIndex = request.getExecutionTabIndex();
-				if (execTabIndex >= 0 && execTabIndex < executionTabbedPane.getTabCount()) {
-					executionTabbedPane.setSelectedIndex(execTabIndex);
-				} else {
-					executionTabbedPane.setSelectedIndex(0);
-				}
-			}
-		} else {
-			// Remove execution tab if present
-			int index = tabbedPane.indexOfComponent(executionPanel);
-			if (index != -1) {
-				tabbedPane.removeTabAt(index);
-			}
-		}
-
-		// Restore selected tab index
-		int savedIndex = node.getSelectedTabIndex();
-		if (savedIndex >= 0 && savedIndex < tabbedPane.getTabCount()) {
-			tabbedPane.setSelectedIndex(savedIndex);
-		} else {
-			tabbedPane.setSelectedIndex(0);
-		}
 		} finally {
 			this.isLoading = false;
 		}
@@ -625,7 +623,7 @@ public class NodeConfigPanel extends JPanel {
 	 * Convert properties format to map.
 	 */
 	private Map<String, String> propertiesToMap(String text) {
-		Map<String, String> map = new HashMap<>();
+		Map<String, String> map = new LinkedHashMap<>();
 
 		if (text == null || text.trim().isEmpty()) {
 			return map;
@@ -677,7 +675,7 @@ public class NodeConfigPanel extends JPanel {
 			style = SyntaxConstants.SYNTAX_STYLE_NONE;
 			break;
 		}
-		
+
 		bodyArea.setSyntaxEditingStyle(style);
 		if (requestBodyArea != null) {
 			requestBodyArea.setSyntaxEditingStyle(style);
@@ -694,35 +692,35 @@ public class NodeConfigPanel extends JPanel {
 		JPanel panel = new JPanel(new BorderLayout());
 		JToolBar toolbar = new JToolBar();
 		toolbar.setFloatable(false);
-		
+
 		JButton saveButton = new JButton("Save");
 		JButton copyButton = new JButton("Copy to Clipboard");
 		JButton clearButton = new JButton("Clear");
 		JCheckBox openAfterSave = new JCheckBox("Open after save");
-		
+
 		saveButton.addActionListener(e -> saveContent(textArea, openAfterSave.isSelected()));
-		
+
 		copyButton.addActionListener(e -> {
 			textArea.selectAll();
 			textArea.copy();
 			textArea.setCaretPosition(0);
 		});
-		
+
 		clearButton.addActionListener(e -> {
 			textArea.setText("");
 			if (onClear != null) {
 				onClear.run();
 			}
 		});
-		
+
 		toolbar.add(copyButton);
 		toolbar.add(clearButton);
 		toolbar.add(saveButton);
 		toolbar.add(openAfterSave);
-		
+
 		panel.add(toolbar, BorderLayout.NORTH);
 		panel.add(new RTextScrollPane(textArea), BorderLayout.CENTER);
-		
+
 		return panel;
 	}
 

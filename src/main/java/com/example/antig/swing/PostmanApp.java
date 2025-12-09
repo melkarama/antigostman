@@ -12,8 +12,9 @@ import java.io.StringReader;
 import java.net.URLEncoder;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
+
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -914,18 +915,36 @@ public class PostmanApp extends JFrame {
 	}
 
 	private Map<String, String> parseProperties(String text) {
-		Map<String, String> map = new HashMap<>();
+		Map<String, String> map = new java.util.LinkedHashMap<>();
 		if (text == null || text.isBlank()) {
 			return map;
 		}
-		try (StringReader reader = new StringReader(text)) {
-			Properties props = new Properties();
-			props.load(reader);
-			for (String name : props.stringPropertyNames()) {
-				map.put(name, props.getProperty(name));
+		// Manual parsing to preserve order
+		String[] lines = text.split("\\R");
+		for (String line : lines) {
+			line = line.trim();
+			if (line.isEmpty() || line.startsWith("#") || line.startsWith("!")) {
+				continue;
 			}
-		} catch (Exception e) {
-			log.error("Failed to parse properties", e);
+			int eqIndex = line.indexOf('=');
+			int colIndex = line.indexOf(':');
+
+			int splitIndex = -1;
+			if (eqIndex != -1 && colIndex != -1) {
+				splitIndex = Math.min(eqIndex, colIndex);
+			} else if (eqIndex != -1) {
+				splitIndex = eqIndex;
+			} else {
+				splitIndex = colIndex;
+			}
+
+			if (splitIndex != -1) {
+				String key = line.substring(0, splitIndex).trim();
+				String value = line.substring(splitIndex + 1).trim();
+				map.put(key, value);
+			} else {
+				map.put(line, "");
+			}
 		}
 		return map;
 	}
@@ -968,7 +987,7 @@ public class PostmanApp extends JFrame {
 		public String url;
 		public String method;
 		public String body;
-		public Map<String, String> headers = new HashMap<>();
+		public Map<String, String> headers = new java.util.LinkedHashMap<>();
 
 		public PmRequest(PostmanRequest req) {
 			this.url = req.getUrl();
@@ -987,7 +1006,7 @@ public class PostmanApp extends JFrame {
 			this.code = response.statusCode();
 			this.status = "OK";
 			this.body = response.body();
-			this.headers = new HashMap<>();
+			this.headers = new java.util.LinkedHashMap<>();
 			response.headers().map().forEach((k, v) -> this.headers.put(k, String.join(",", v)));
 		}
 

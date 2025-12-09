@@ -6,7 +6,7 @@ import java.util.List;
 public class PostmanCollection extends PostmanNode {
     private List<PostmanNode> children = new ArrayList<>();
     private String lastSelectedNodeId;
-    private java.util.Map<String, String> globalVariables = new java.util.HashMap<>();
+	private java.util.Map<String, String> globalVariables = new java.util.LinkedHashMap<>();
 
     public PostmanCollection() {
         super();

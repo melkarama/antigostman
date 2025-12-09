@@ -12,7 +12,7 @@ public class XmlCollection extends XmlNode {
     private String lastSelectedNodeId;
     @com.fasterxml.jackson.annotation.JsonProperty("globalVariables")
     @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.ALWAYS)
-    private java.util.Map<String, String> globalVariables = new java.util.HashMap<>();
+    private java.util.Map<String, String> globalVariables = new java.util.LinkedHashMap<>();
 
     public XmlCollection() {
         super();

@@ -3,7 +3,7 @@ package com.example.antig.swing.model.xml;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
@@ -23,8 +23,8 @@ import java.util.Map;
 public abstract class XmlNode {
     private String id;
     private String name;
-    private Map<String, String> environment = new HashMap<>();
-    private Map<String, String> headers = new HashMap<>();
+    private Map<String, String> environment = new LinkedHashMap<>();
+    private Map<String, String> headers = new LinkedHashMap<>();
     private String prescript = "";
     private String postscript = "";
     private boolean expanded = false; // Track if node was expanded in UI
