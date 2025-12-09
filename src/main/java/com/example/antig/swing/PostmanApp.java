@@ -270,6 +270,18 @@ public class PostmanApp extends JFrame {
 		consoleTextArea = new JTextArea();
 		consoleTextArea.setEditable(false);
 		consoleTextArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
+		consoleTextArea.addMouseListener(new MouseAdapter() {
+			@Override
+			public void mousePressed(MouseEvent e) {
+				if (SwingUtilities.isRightMouseButton(e)) {
+					JPopupMenu menu = new JPopupMenu();
+					JMenuItem clearItem = new JMenuItem("Clear Console");
+					clearItem.addActionListener(ev -> clearConsole());
+					menu.add(clearItem);
+					menu.show(e.getComponent(), e.getX(), e.getY());
+				}
+			}
+		});
 		consoleTabbedPane.addTab("Console", new JScrollPane(consoleTextArea));
 
 		// Vertical Split Pane
@@ -748,6 +760,7 @@ public class PostmanApp extends JFrame {
 
 		// 3. PM Object Setup & Prescript
 		PmContext pm = new PmContext(env, req);
+		fEngine.put("utils", new Utils());
 		fEngine.put("pm", pm);
 		fEngine.put("console", new ConsoleLogger());
 
@@ -821,62 +834,72 @@ public class PostmanApp extends JFrame {
 				nodeConfigPanel.setRequestBody(finalBody != null ? finalBody : "");
 
 				try {
-					HttpResponse<String> response = get();
+					HttpResponse<String> response = null;
+					Exception executionException = null;
+					try {
+						response = get();
+					} catch (Exception e) {
+						executionException = e;
+					}
 
-					// 7. Postscript
-					pm.response = new PmResponse(response);
+					// 7. Postscript (Run even if request failed)
+					if (response != null) {
+						pm.response = new PmResponse(response);
+					}
+
 					String postscript = req.getPostscript();
 					if (postscript != null && !postscript.trim().isEmpty()) {
 						try {
 							fEngine.eval(postscript);
 						} catch (Exception e) {
 							log.error("Postscript error", e);
-							// Append error to response area later
+							nodeConfigPanel.getResponseArea().append("\n\n[Postscript Error] " + e.getMessage());
 						}
 					}
 
-					// 8. Display Response in execution tabs
+					// 8. Display Response or Error
+					if (response != null) {
+						// Response Headers
+						StringBuilder respHeadersSb = new StringBuilder();
+						respHeadersSb.append("Status: ").append(response.statusCode()).append("\n\n");
+						response.headers().map().forEach((k, v) -> respHeadersSb.append(k).append(": ").append(v).append("\n"));
+						nodeConfigPanel.setResponseHeaders(respHeadersSb.toString());
 
-					// Response Headers
-					StringBuilder respHeadersSb = new StringBuilder();
-					respHeadersSb.append("Status: ").append(response.statusCode()).append("\n\n");
-					response.headers().map().forEach((k, v) -> respHeadersSb.append(k).append(": ").append(v).append("\n"));
-					nodeConfigPanel.setResponseHeaders(respHeadersSb.toString());
+						// Response Body (with JSON formatting if applicable)
+						String responseBody;
+						String syntaxStyle = SyntaxConstants.SYNTAX_STYLE_NONE;
 
-					// Response Body (with JSON formatting if applicable)
-					String responseBody;
-					String syntaxStyle = SyntaxConstants.SYNTAX_STYLE_NONE;
+						// Determine syntax from Content-Type header
+						String contentType = response.headers().firstValue("Content-Type").orElse("").toLowerCase();
+						if (contentType.contains("json")) {
+							syntaxStyle = SyntaxConstants.SYNTAX_STYLE_JSON;
+						} else if (contentType.contains("xml")) {
+							syntaxStyle = SyntaxConstants.SYNTAX_STYLE_XML;
+						} else if (contentType.contains("html")) {
+							syntaxStyle = SyntaxConstants.SYNTAX_STYLE_HTML;
+						}
 
-					// Determine syntax from Content-Type header
-					String contentType = response.headers().firstValue("Content-Type").orElse("").toLowerCase();
-					if (contentType.contains("json")) {
-						syntaxStyle = SyntaxConstants.SYNTAX_STYLE_JSON;
-					} else if (contentType.contains("xml")) {
-						syntaxStyle = SyntaxConstants.SYNTAX_STYLE_XML;
-					} else if (contentType.contains("html")) {
-						syntaxStyle = SyntaxConstants.SYNTAX_STYLE_HTML;
+						try {
+							Object json = objectMapper.readValue(response.body(), Object.class);
+							responseBody = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(json);
+							// If parsing succeeded, it is JSON
+							syntaxStyle = SyntaxConstants.SYNTAX_STYLE_JSON;
+						} catch (Exception e) {
+							responseBody = response.body();
+						}
+						nodeConfigPanel.setResponseBody(responseBody);
+						nodeConfigPanel.setResponseBodySyntax(syntaxStyle);
+
+						// Also set the old responseArea (now just shows response body since we have
+						// separate tabs)
+						nodeConfigPanel.getResponseArea().setText(responseBody);
+					} else if (executionException != null) {
+						String errorMsg = "Error: " + executionException.getMessage();
+						nodeConfigPanel.setResponseBody(errorMsg);
+						nodeConfigPanel.setResponseBodySyntax(SyntaxConstants.SYNTAX_STYLE_NONE);
+						nodeConfigPanel.getResponseArea().setText(errorMsg);
+						executionException.printStackTrace();
 					}
-
-					try {
-						Object json = objectMapper.readValue(response.body(), Object.class);
-						responseBody = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(json);
-						// If parsing succeeded, it is JSON
-						syntaxStyle = SyntaxConstants.SYNTAX_STYLE_JSON;
-					} catch (Exception e) {
-						responseBody = response.body();
-					}
-					nodeConfigPanel.setResponseBody(responseBody);
-					nodeConfigPanel.setResponseBodySyntax(syntaxStyle);
-
-					// Also set the old responseArea (now just shows response body since we have
-					// separate tabs)
-					nodeConfigPanel.getResponseArea().setText(responseBody);
-				} catch (Exception e) {
-					String errorMsg = "Error: " + e.getMessage();
-					nodeConfigPanel.setResponseBody(errorMsg);
-					nodeConfigPanel.setResponseBodySyntax(SyntaxConstants.SYNTAX_STYLE_NONE);
-					nodeConfigPanel.getResponseArea().setText(errorMsg);
-					e.printStackTrace();
 				} finally {
 					sendButton.setEnabled(true);
 				}
