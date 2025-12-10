@@ -8,17 +8,17 @@ import java.awt.Font;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.File;
-import java.io.StringReader;
 import java.net.URLEncoder;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
-
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.UUID;
 
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
@@ -49,6 +49,7 @@ import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.TreeNode;
 import javax.swing.tree.TreePath;
 
+import org.apache.commons.lang3.StringUtils;
 import org.fife.ui.rsyntaxtextarea.SyntaxConstants;
 
 import com.example.antig.swing.model.PostmanCollection;
@@ -104,7 +105,7 @@ public class PostmanApp extends JFrame {
 	// Static reference to keep the socket alive
 	private static java.net.ServerSocket lockSocket;
 
-	public PostmanApp() {
+	public PostmanApp() throws KeyManagementException, NoSuchAlgorithmException {
 		this.httpClientService = new HttpClientService();
 		this.projectService = new ProjectService();
 		this.recentProjectsManager = new RecentProjectsManager();
@@ -293,7 +294,7 @@ public class PostmanApp extends JFrame {
 		verticalSplitPane.setResizeWeight(0.75); // 75% for main content
 
 		add(verticalSplitPane, BorderLayout.CENTER);
-		
+
 		// Set initial divider location
 		SwingUtilities.invokeLater(() -> verticalSplitPane.setDividerLocation(0.75));
 	}
@@ -593,8 +594,8 @@ public class PostmanApp extends JFrame {
 		Object[] options = { "Yes", "No" };
 		int response = JOptionPane.showOptionDialog(this, "Are you sure you want to delete '" + node.getName() + "'?",
 				"Confirm Delete", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE, null, options, options[1]); // Default
-																																																								// to
-																																																								// "No"
+																														// to
+																														// "No"
 
 		if (response != 0) {
 			return; // 0 = Yes, 1 = No
@@ -634,7 +635,8 @@ public class PostmanApp extends JFrame {
 
 			// Convert to XML model (no parent references), then back to PostmanNode
 			// This avoids cyclic serialization issues
-			com.example.antig.swing.model.xml.XmlNode xmlNode = com.example.antig.swing.service.NodeConverter.toXmlNode(node);
+			com.example.antig.swing.model.xml.XmlNode xmlNode = com.example.antig.swing.service.NodeConverter
+					.toXmlNode(node);
 
 			if (xmlNode == null) {
 				throw new RuntimeException("Failed to convert node to XML (returned null)");
@@ -680,6 +682,43 @@ public class PostmanApp extends JFrame {
 			PostmanNode child = (PostmanNode) node.getChildAt(i);
 			regenerateIds(child);
 		}
+	}
+
+	private String parse(String s, Map<String, String> env) {
+		String key = UUID.randomUUID().toString();
+
+		Properties p = new Properties();
+		p.put(key, s);
+
+		PropertiesUtils.analyseAndProcessProperties(p, env);
+
+		String result = p.getProperty(key);
+
+		return result;
+	}
+
+	private String createPrescript(PostmanNode node) {
+		if (node == null) {
+			return null;
+		}
+
+		if (!StringUtils.isBlank(node.getPrescript())) {
+			return node.getPrescript();
+		}
+
+		return createPrescript((PostmanNode) node.getParent());
+	}
+
+	private String createPostscript(PostmanNode node) {
+		if (node == null) {
+			return null;
+		}
+
+		if (!StringUtils.isBlank(node.getPostscript())) {
+			return node.getPostscript();
+		}
+
+		return createPostscript((PostmanNode) node.getParent());
 	}
 
 	private Map<String, String> createEnv(PostmanNode node) {
@@ -747,6 +786,10 @@ public class PostmanApp extends JFrame {
 		// 1. Initial Environment
 		Map<String, String> env = createEnv(currentNode);
 
+		Map<String, String> globalEnv = ((PostmanNode) rootCollection.getChildAt(0)).getEnvironment();
+
+		env.putAll(globalEnv);
+
 		// 2. Script Engine Setup
 		ScriptEngine engine = new ScriptEngineManager().getEngineByName("nashorn");
 		if (engine == null) {
@@ -766,10 +809,12 @@ public class PostmanApp extends JFrame {
 		// 3. PM Object Setup & Prescript
 		PmContext pm = new PmContext(env, req);
 		fEngine.put("utils", new Utils());
+		fEngine.put("vars", globalEnv);
 		fEngine.put("pm", pm);
 		fEngine.put("console", new ConsoleLogger());
 
-		String prescript = req.getPrescript();
+		String prescript = createPrescript(req);
+
 		if (prescript != null && !prescript.trim().isEmpty()) {
 			try {
 				fEngine.eval(prescript);
@@ -823,7 +868,11 @@ public class PostmanApp extends JFrame {
 		SwingWorker<HttpResponse<String>, Void> worker = new SwingWorker<>() {
 			@Override
 			protected HttpResponse<String> doInBackground() throws Exception {
-				return httpClientService.sendRequest(req.getUrl(), req.getMethod(), finalBody, finalHeaders, req.getTimeout(),
+
+				String url = parse(req.getUrl(), env);
+				String body = parse(finalBody, env);
+
+				return httpClientService.sendRequest(url, req.getMethod(), body, finalHeaders, req.getTimeout(),
 						req.getHttpVersion());
 			}
 
@@ -852,7 +901,8 @@ public class PostmanApp extends JFrame {
 						pm.response = new PmResponse(response);
 					}
 
-					String postscript = req.getPostscript();
+					String postscript = createPostscript(req);
+
 					if (postscript != null && !postscript.trim().isEmpty()) {
 						try {
 							fEngine.eval(postscript);
@@ -867,7 +917,8 @@ public class PostmanApp extends JFrame {
 						// Response Headers
 						StringBuilder respHeadersSb = new StringBuilder();
 						respHeadersSb.append("Status: ").append(response.statusCode()).append("\n\n");
-						response.headers().map().forEach((k, v) -> respHeadersSb.append(k).append(": ").append(v).append("\n"));
+						response.headers().map()
+								.forEach((k, v) -> respHeadersSb.append(k).append(": ").append(v).append("\n"));
 						nodeConfigPanel.setResponseHeaders(respHeadersSb.toString());
 
 						// Response Body (with JSON formatting if applicable)
@@ -1474,7 +1525,13 @@ public class PostmanApp extends JFrame {
 				ex.printStackTrace();
 			}
 		}
-		SwingUtilities.invokeLater(() -> new PostmanApp().setVisible(true));
+		SwingUtilities.invokeLater(() -> {
+			try {
+				new PostmanApp().setVisible(true);
+			} catch (Exception ex) {
+				ex.printStackTrace();
+			}
+		});
 	}
 
 	private void initConsole() {
