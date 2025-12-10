@@ -14,11 +14,12 @@ import java.nio.charset.StandardCharsets;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Properties;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
@@ -61,7 +62,7 @@ import com.example.antig.swing.service.RecentProjectsManager;
 import com.example.antig.swing.ui.NodeConfigPanel;
 import com.example.antig.swing.ui.PostmanTreeCellRenderer;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.socle2.utils.PropertiesUtils;
+import com.socle2.templating.VelocityTemplateEngine;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -684,15 +685,36 @@ public class PostmanApp extends JFrame {
 		}
 	}
 
-	private String parse(String s, Map<String, String> env) {
-		String key = UUID.randomUUID().toString();
+	private String parse(String s, Map<String, String> map) {
+		Pattern P = Pattern.compile("\\{\\s*\\{(.+?)\\}\\s*\\}", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+		Matcher M = P.matcher(s);
 
-		Properties p = new Properties();
-		p.put(key, s);
+		while (M.find()) {
+			String g1 = M.group();
+			String g2 = M.group(1);
+			s = s.replace(g1, "${" + g2 + "}");
 
-		PropertiesUtils.analyseAndProcessProperties(p, env);
+			s = VelocityTemplateEngine.processStringTemplate(s, map);
 
-		String result = p.getProperty(key);
+			M.reset(s);
+		}
+
+		String result = VelocityTemplateEngine.processStringTemplate(s, map);
+
+		return result;
+	}
+
+	private Map<String, String> parse(Map<String, String> map) {
+
+		Map<String, String> result = new LinkedHashMap<>(map);
+
+		for (String k : map.keySet()) {
+			String v = result.get(k);
+
+			v = parse(v, result);
+
+			result.put(k, v);
+		}
 
 		return result;
 	}
@@ -746,33 +768,28 @@ public class PostmanApp extends JFrame {
 		// 3. Node Environment (Specific)
 		map.putAll(node.getEnvironment());
 
-		Properties env = new Properties();
-		env.putAll(map);
-
-		PropertiesUtils.analyseAndProcessProperties(env, Map.of());
-
-		return PropertiesUtils.propertiesToMap(env);
+		return parse(map);
 	}
 
-	private Map<String, String> createHeaders(PostmanNode node, Map<String, String> env) {
+	private Map<String, String> createHeaders(PostmanNode node, Map<String, String> env, boolean parse) {
 		if (node == null) {
 			return Map.of();
 		}
 
 		TreeNode parent = node.getParent();
 
-		Map<String, String> parentHeaderMap = parent == null ? Map.of() : createHeaders((PostmanNode) parent, env);
+		Map<String, String> parentHeaderMap = parent == null ? Map.of()
+				: createHeaders((PostmanNode) parent, env, false);
 
-		TreeMap<String, String> map = new TreeMap<>();
+		Map<String, String> map = new TreeMap<>();
 		map.putAll(parentHeaderMap);
 		map.putAll(node.getHeaders());
 
-		Properties header = new Properties();
-		header.putAll(map);
+		if (parse) {
+			map = parse(map);
+		}
 
-		PropertiesUtils.analyseAndProcessProperties(header, env);
-
-		return PropertiesUtils.propertiesToMap(header);
+		return map;
 	}
 
 	private void sendRequest() {
@@ -827,7 +844,7 @@ public class PostmanApp extends JFrame {
 		}
 
 		// 4. Prepare Request (using potentially modified env)
-		Map<String, String> headers = createHeaders(currentNode, env);
+		Map<String, String> headers = createHeaders(currentNode, env, true);
 
 		// 5. Body Formatting & Content-Type
 		String bodyType = req.getBodyType() != null ? req.getBodyType() : "TEXT";
@@ -892,8 +909,9 @@ public class PostmanApp extends JFrame {
 					Exception executionException = null;
 					try {
 						response = get();
-					} catch (Exception e) {
-						executionException = e;
+					} catch (Exception ex) {
+						ex.printStackTrace();
+						executionException = ex;
 					}
 
 					// 7. Postscript (Run even if request failed)
@@ -906,9 +924,9 @@ public class PostmanApp extends JFrame {
 					if (postscript != null && !postscript.trim().isEmpty()) {
 						try {
 							fEngine.eval(postscript);
-						} catch (Exception e) {
-							log.error("Postscript error", e);
-							nodeConfigPanel.getResponseArea().append("\n\n[Postscript Error] " + e.getMessage());
+						} catch (Exception ex) {
+							ex.printStackTrace();
+							nodeConfigPanel.getResponseArea().append("\n\n[Postscript Error] " + ex.getMessage());
 						}
 					}
 
