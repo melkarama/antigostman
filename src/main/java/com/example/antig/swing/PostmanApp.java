@@ -118,14 +118,10 @@ public class PostmanApp extends JFrame {
 
 		initMenu();
 		initComponents();
+		initMenu();
+		initComponents();
 		initConsole();
 		initGlobalShortcuts();
-
-		// Load saved UI state
-		restoreUIState();
-
-		// Ensure frame is centered relative to screen (must be after sizing)
-		setLocationRelativeTo(null);
 
 		// Load last opened project
 		SwingUtilities.invokeLater(this::restoreWorkspace);
@@ -134,51 +130,8 @@ public class PostmanApp extends JFrame {
 		addWindowListener(new java.awt.event.WindowAdapter() {
 			@Override
 			public void windowClosing(java.awt.event.WindowEvent e) {
-				// Save UI state
-				saveUIState();
-
 				// Save all projects before closing
 				saveAllProjects();
-			}
-		});
-	}
-
-	private void saveUIState() {
-		// Save frame size
-		java.awt.Dimension size = getSize();
-		recentProjectsManager.setFrameSize(size.width, size.height);
-
-		// Save split pane locations
-		if (verticalSplitPane != null) {
-			recentProjectsManager.setConsoleSplitLocation(verticalSplitPane.getDividerLocation());
-		}
-		if (mainHorizontalSplitPane != null) {
-			recentProjectsManager.setMainSplitLocation(mainHorizontalSplitPane.getDividerLocation());
-		}
-	}
-
-	private void restoreUIState() {
-		// Restore frame size
-		java.awt.Dimension size = recentProjectsManager.getFrameSize();
-		if (size != null) {
-			setSize(size);
-		} else {
-			setSize(1000, 700); // Default
-		}
-
-		// Split locations are restored in invokeLater to ensure components are realized
-		SwingUtilities.invokeLater(() -> {
-			int consoleLoc = recentProjectsManager.getConsoleSplitLocation();
-			if (consoleLoc != -1 && verticalSplitPane != null) {
-				verticalSplitPane.setDividerLocation(consoleLoc);
-			}
-
-			int mainLoc = recentProjectsManager.getMainSplitLocation();
-			if (mainLoc != -1 && mainHorizontalSplitPane != null) {
-				mainHorizontalSplitPane.setDividerLocation(mainLoc);
-			} else if (mainHorizontalSplitPane != null) {
-				// Default
-				mainHorizontalSplitPane.setDividerLocation(250);
 			}
 		});
 	}
@@ -228,11 +181,8 @@ public class PostmanApp extends JFrame {
 		setJMenuBar(menuBar);
 	}
 
-	private JSplitPane mainHorizontalSplitPane;
-
 	private void initComponents() {
 		JSplitPane mainSplitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
-		this.mainHorizontalSplitPane = mainSplitPane;
 		mainSplitPane.setDividerLocation(250);
 
 		// Left: Tree View
@@ -1297,6 +1247,7 @@ public class PostmanApp extends JFrame {
 				}
 			}
 		}
+
 	}
 
 	private void expandAllNodes() {
@@ -1612,21 +1563,6 @@ public class PostmanApp extends JFrame {
 				ex.printStackTrace();
 			}
 		});
-	}
-
-	private void saveAllProjects() {
-		saveProject();
-	}
-
-	private void restoreWorkspace() {
-		java.util.List<String> openProjects = recentProjectsManager.getOpenProjects();
-		if (!openProjects.isEmpty()) {
-			// Load the first one for now as we support single project view primarily
-			File file = new File(openProjects.get(0));
-			if (file.exists()) {
-				loadProjectFromFile(file);
-			}
-		}
 	}
 
 	private void initConsole() {

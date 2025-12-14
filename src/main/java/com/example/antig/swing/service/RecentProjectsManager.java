@@ -17,10 +17,6 @@ public class RecentProjectsManager {
     private static final String OPEN_PROJECT_KEY_PREFIX = "open.project.";
     private static final String THEME_KEY = "theme";
     private static final String LAST_SAVE_DIR_KEY = "last.save.dir";
-    private static final String UI_FRAME_WIDTH = "ui.frame.width";
-    private static final String UI_FRAME_HEIGHT = "ui.frame.height";
-    private static final String UI_SPLIT_MAIN = "ui.split.main.location";
-    private static final String UI_SPLIT_CONSOLE = "ui.split.console.location";
     private static final int MAX_RECENT = 10;
     
     private final List<String> recentProjects = new ArrayList<>();
@@ -183,65 +179,6 @@ public class RecentProjectsManager {
         Properties props = loadProperties();
         props.setProperty(THEME_KEY, theme);
         saveProperties(props);
-    }
-
-    public void setFrameSize(int width, int height) {
-        Properties props = loadProperties();
-        props.setProperty(UI_FRAME_WIDTH, String.valueOf(width));
-        props.setProperty(UI_FRAME_HEIGHT, String.valueOf(height));
-        saveProperties(props);
-    }
-
-    public java.awt.Dimension getFrameSize() {
-        Properties props = loadProperties();
-        String w = props.getProperty(UI_FRAME_WIDTH);
-        String h = props.getProperty(UI_FRAME_HEIGHT);
-        if (w != null && h != null) {
-            try {
-                return new java.awt.Dimension(Integer.parseInt(w), Integer.parseInt(h));
-            } catch (NumberFormatException e) {
-                // Ignore
-            }
-        }
-        return null; // Default
-    }
-
-    public void setMainSplitLocation(int location) {
-        Properties props = loadProperties();
-        props.setProperty(UI_SPLIT_MAIN, String.valueOf(location));
-        saveProperties(props);
-    }
-
-    public int getMainSplitLocation() {
-        Properties props = loadProperties();
-        String val = props.getProperty(UI_SPLIT_MAIN);
-        if (val != null) {
-            try {
-                return Integer.parseInt(val);
-            } catch (NumberFormatException e) {
-                // Ignore
-            }
-        }
-        return -1;
-    }
-
-    public void setConsoleSplitLocation(int location) {
-        Properties props = loadProperties();
-        props.setProperty(UI_SPLIT_CONSOLE, String.valueOf(location));
-        saveProperties(props);
-    }
-
-    public int getConsoleSplitLocation() {
-        Properties props = loadProperties();
-        String val = props.getProperty(UI_SPLIT_CONSOLE);
-        if (val != null) {
-            try {
-                return Integer.parseInt(val);
-            } catch (NumberFormatException e) {
-                // Ignore
-            }
-        }
-        return -1;
     }
 
     private Properties loadProperties() {
