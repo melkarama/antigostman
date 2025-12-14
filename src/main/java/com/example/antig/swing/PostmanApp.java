@@ -1444,12 +1444,21 @@ public class PostmanApp extends JFrame {
 					return false;
 				}
 
+				PostmanNode currentParent = (PostmanNode) draggedNode.getParent();
+				int currentIndex = currentParent.getIndex(draggedNode);
+
 				// Perform move
 				treeModel.removeNodeFromParent(draggedNode);
 
 				int index = dl.getChildIndex();
 				if (index == -1) {
 					index = targetParent.getChildCount();
+				}
+
+				// If moving within the same parent and moving down (source index < target index),
+				// we need to decrement the target index because removing the node shifted subsequent indices.
+				if (currentParent == targetParent && currentIndex < index) {
+					index--;
 				}
 
 				treeModel.insertNodeInto(draggedNode, targetParent, index);
