@@ -60,8 +60,10 @@ public class NodeConfigPanel extends JPanel {
 	// Request-only tabs
 	private RSyntaxTextArea bodyArea;
 	private JTextArea responseArea;
-	private JPanel executionPanel;
+	// private JPanel executionPanel; // Removed
 	private JTabbedPane executionTabbedPane;
+	private JSplitPane mainSplitPane;
+	private JPanel executionResultsPanel;
 	private RSyntaxTextArea requestHeadersArea;
 	private RSyntaxTextArea requestBodyArea;
 	private RSyntaxTextArea responseHeadersArea;
@@ -80,6 +82,9 @@ public class NodeConfigPanel extends JPanel {
 
 	public NodeConfigPanel() {
 		setLayout(new BorderLayout());
+
+		mainSplitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
+		mainSplitPane.setResizeWeight(0.7); // 70% config, 30% results
 
 		tabbedPane = new JTabbedPane();
 
@@ -102,11 +107,11 @@ public class NodeConfigPanel extends JPanel {
 		// Tab 6: Global Variables (initially hidden, added dynamically)
 		globalVarsArea = createPropertiesEditor();
 
-		// Body Editor (initialized before execution panel so it can be added there)
+		// Body Editor
 		bodyArea = createBodyEditor();
 
-		// Tab 5: Execution (for requests only)
-		createExecutionPanel();
+		// Bottom: Execution Results
+		createExecutionResultsPanel();
 
 		// Add listener to track tab selection changes
 		tabbedPane.addChangeListener(e -> {
@@ -115,7 +120,10 @@ public class NodeConfigPanel extends JPanel {
 			}
 		});
 
-		add(tabbedPane, BorderLayout.CENTER);
+		mainSplitPane.setTopComponent(tabbedPane);
+		mainSplitPane.setBottomComponent(executionResultsPanel);
+
+		add(mainSplitPane, BorderLayout.CENTER);
 	}
 
 	private RSyntaxTextArea createPropertiesEditor() {
@@ -307,22 +315,9 @@ public class NodeConfigPanel extends JPanel {
 		return textArea;
 	}
 
-	private void createExecutionPanel() {
-		executionPanel = new JPanel(new BorderLayout());
-
-		// Split into two parts: body (top) and execution tabs (bottom)
-		JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
-		splitPane.setResizeWeight(0.3); // 30% for body, 70% for execution tabs
-
-		// Top: Body
-		JPanel bodyPanel = new JPanel(new BorderLayout());
-		bodyPanel.add(new JLabel("Request Body"), BorderLayout.NORTH);
-		RTextScrollPane bodyScrollPane = new RTextScrollPane(bodyArea);
-		bodyScrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
-		bodyPanel.add(bodyScrollPane, BorderLayout.CENTER);
-		splitPane.setTopComponent(bodyPanel);
-
-		// Bottom: Execution tabs
+	private void createExecutionResultsPanel() {
+		executionResultsPanel = new JPanel(new BorderLayout());
+		
 		executionTabbedPane = new JTabbedPane();
 		executionTabbedPane.addChangeListener(e -> {
 			if (currentNode instanceof PostmanRequest) {
@@ -352,9 +347,7 @@ public class NodeConfigPanel extends JPanel {
 		// Keep reference to old responseArea for backward compatibility
 		responseArea = responseBodyArea;
 
-		splitPane.setBottomComponent(executionTabbedPane);
-
-		executionPanel.add(splitPane, BorderLayout.CENTER);
+		executionResultsPanel.add(executionTabbedPane, BorderLayout.CENTER);
 	}
 
 	private RSyntaxTextArea createReadOnlySyntaxTextArea() {
@@ -422,12 +415,33 @@ public class NodeConfigPanel extends JPanel {
 				}
 			}
 
-			// Show/hide execution tab based on node type
+			// Show/hide Body tab and Execution Panel based on node type
 			if (node instanceof PostmanRequest) {
-				// Add execution tab if not present
-				if (tabbedPane.indexOfComponent(executionPanel) == -1) {
-					tabbedPane.addTab("Execution", executionPanel);
+				// ADD Body Tab if NOT present
+				boolean bodyTabExists = false;
+				for(int i=0; i<tabbedPane.getTabCount(); i++) {
+					if("Body".equals(tabbedPane.getTitleAt(i))) {
+						bodyTabExists = true;
+						break;
+					}
 				}
+				if(!bodyTabExists) {
+					// Insert Body tab after Headers (index 2)
+					// Env=0, Headers=1, Body=2
+					// But Headers is index 1.
+					// Insert at index 2
+					if(tabbedPane.getTabCount() >= 2) {
+						tabbedPane.insertTab("Body", null, new RTextScrollPane(bodyArea), null, 2);
+					} else {
+						tabbedPane.addTab("Body", new RTextScrollPane(bodyArea));
+					}
+				}
+
+				// Show Execution Results Panel
+				executionResultsPanel.setVisible(true);
+				mainSplitPane.setDividerLocation(0.7); // Reset divider
+				mainSplitPane.setBottomComponent(executionResultsPanel);
+				mainSplitPane.setDividerSize(10); // Restore divider
 
 				PostmanRequest request = (PostmanRequest) node;
 				bodyArea.setText(request.getBody() != null ? request.getBody() : "");
@@ -457,11 +471,19 @@ public class NodeConfigPanel extends JPanel {
 					}
 				}
 			} else {
-				// Remove execution tab if present
-				int index = tabbedPane.indexOfComponent(executionPanel);
-				if (index != -1) {
-					tabbedPane.removeTabAt(index);
+				// Remove Body tab if present
+				for (int i = 0; i < tabbedPane.getTabCount(); i++) {
+					if ("Body".equals(tabbedPane.getTitleAt(i))) {
+						tabbedPane.removeTabAt(i);
+						break;
+					}
 				}
+				
+				// Hide Execution Results Panel
+				executionResultsPanel.setVisible(false);
+				mainSplitPane.setBottomComponent(null);
+				mainSplitPane.setDividerSize(0); // Hide divider
+				
 			}
 
 			// Restore selected tab index
@@ -574,12 +596,18 @@ public class NodeConfigPanel extends JPanel {
 	/**
 	 * Select the Execution tab if it exists.
 	 */
+	/**
+	 * Select the Execution tab if it exists.
+	 */
 	public void selectExecutionTab() {
-		int count = tabbedPane.getTabCount();
-		for (int i = 0; i < count; i++) {
-			if ("Execution".equals(tabbedPane.getTitleAt(i))) {
-				tabbedPane.setSelectedIndex(i);
-				break;
+		// New behavior: Select the "Response Body" tab in the bottom panel
+		if (executionTabbedPane != null) {
+			int count = executionTabbedPane.getTabCount();
+			for(int i=0; i<count; i++) {
+				if("Response Body".equals(executionTabbedPane.getTitleAt(i))) {
+					executionTabbedPane.setSelectedIndex(i);
+					break;
+				}
 			}
 		}
 	}
