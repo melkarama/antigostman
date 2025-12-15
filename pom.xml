@@ -10,7 +10,7 @@
 	</parent>
 	<groupId>antig</groupId>
 	<artifactId>antig</artifactId>
-	<version>1.1-SNAPSHOT</version>
+	<version>1.2-SNAPSHOT</version>
 	<properties>
 		<java.version>21</java.version>
 	</properties>
