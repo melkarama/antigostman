@@ -309,19 +309,33 @@ public class PostmanApp extends JFrame {
 				}
 			}
 		});
-		consoleTabbedPane.addTab("Console", new JScrollPane(consoleTextArea));
+		JPanel consolePanel = new JPanel(new BorderLayout());
+		
+		JPanel consoleToolbar = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0)); // Compact toolbar
+		consoleToolbar.setBorder(BorderFactory.createEmptyBorder(2, 2, 2, 2));
+		JButton clearConsoleButton = new JButton("Clear");
+		clearConsoleButton.setToolTipText("Clear Console Output");
+		clearConsoleButton.addActionListener(e -> clearConsole());
+		// Make button small
+		clearConsoleButton.setMargin(new java.awt.Insets(2, 5, 2, 5));
+		clearConsoleButton.setFocusable(false);
+		consoleToolbar.add(clearConsoleButton);
+		
+		consolePanel.add(consoleToolbar, BorderLayout.NORTH);
+		consolePanel.add(new JScrollPane(consoleTextArea), BorderLayout.CENTER);
+		
+		consoleTabbedPane.addTab("Console", consolePanel);
 
 		// Vertical Split Pane
 		verticalSplitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
-		verticalSplitPane.setResizeWeight(0.8); // 80% for main content
+		verticalSplitPane.setResizeWeight(0.66); // 2/3 for main content
 		verticalSplitPane.setTopComponent(mainSplitPane);
 		verticalSplitPane.setBottomComponent(consoleTabbedPane);
-		verticalSplitPane.setResizeWeight(0.75); // 75% for main content
 
 		add(verticalSplitPane, BorderLayout.CENTER);
 
 		// Set initial divider location
-		SwingUtilities.invokeLater(() -> verticalSplitPane.setDividerLocation(0.75));
+		SwingUtilities.invokeLater(() -> verticalSplitPane.setDividerLocation(0.66));
 	}
 
 	private JPanel createRequestToolbar() {
