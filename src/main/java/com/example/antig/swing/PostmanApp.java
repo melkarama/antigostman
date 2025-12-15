@@ -329,14 +329,14 @@ public class PostmanApp extends JFrame {
 
 		// Vertical Split Pane
 		verticalSplitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
-		verticalSplitPane.setResizeWeight(0.66); // 2/3 for main content
+		verticalSplitPane.setResizeWeight(0.67); // Give console 33% of height
 		verticalSplitPane.setTopComponent(mainSplitPane);
 		verticalSplitPane.setBottomComponent(consoleTabbedPane);
 
 		add(verticalSplitPane, BorderLayout.CENTER);
 
 		// Set initial divider location
-		SwingUtilities.invokeLater(() -> verticalSplitPane.setDividerLocation(0.66));
+		SwingUtilities.invokeLater(() -> verticalSplitPane.setDividerLocation(0.67));
 	}
 
 	private JPanel createRequestToolbar() {
@@ -1701,6 +1701,21 @@ public class PostmanApp extends JFrame {
 				PostmanApp app = new PostmanApp();
 				app.setExtendedState(JFrame.MAXIMIZED_BOTH);
 				app.setVisible(true);
+				
+				// Set divider location after window is fully sized
+				app.addComponentListener(new java.awt.event.ComponentAdapter() {
+					@Override
+					public void componentResized(java.awt.event.ComponentEvent e) {
+						SwingUtilities.invokeLater(() -> {
+							int height = app.verticalSplitPane.getHeight();
+							if (height > 0) {
+								app.verticalSplitPane.setDividerLocation((int)(height * 0.67));
+								app.removeComponentListener(this); // Only do this once
+							}
+						});
+					}
+				});
+				
 				app.toFront();
 				app.requestFocus();
 			} catch (Exception ex) {
@@ -1721,7 +1736,7 @@ public class PostmanApp extends JFrame {
 		boolean isVisible = consoleTabbedPane.isVisible();
 		consoleTabbedPane.setVisible(!isVisible);
 		if (!isVisible) {
-			verticalSplitPane.setDividerLocation(0.75);
+			verticalSplitPane.setDividerLocation(0.67);
 		}
 	}
 
