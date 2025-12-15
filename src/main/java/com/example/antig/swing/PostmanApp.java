@@ -1563,7 +1563,11 @@ public class PostmanApp extends JFrame {
 		}
 		SwingUtilities.invokeLater(() -> {
 			try {
-				new PostmanApp().setVisible(true);
+				PostmanApp app = new PostmanApp();
+				app.setExtendedState(JFrame.MAXIMIZED_BOTH);
+				app.setVisible(true);
+				app.toFront();
+				app.requestFocus();
 			} catch (Exception ex) {
 				ex.printStackTrace();
 			}
