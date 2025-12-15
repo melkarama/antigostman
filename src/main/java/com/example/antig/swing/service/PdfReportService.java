@@ -42,7 +42,7 @@ public class PdfReportService {
 	private static final Font FONT_TABLE_HEADER = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, COLOR_SECONDARY);
 
 	public void generateReport(PostmanRequest req, String projectName, Map<String, String> requestHeaders, String requestBody,
-			HttpResponse<String> response, Exception exception, File outputFile) throws IOException, DocumentException {
+			HttpResponse<String> response, Exception exception, String consoleOutput, File outputFile) throws IOException, DocumentException {
 
 		Document document = new Document(PageSize.A4, 50, 50, 50, 50);
 		PdfWriter.getInstance(document, new FileOutputStream(outputFile));
@@ -96,6 +96,15 @@ public class PdfReportService {
 		
 		if (!hasContent) {
 			document.add(new Paragraph("No response recorded.", FONT_BODY));
+		}
+
+		// Execution Log Section
+		document.add(Chunk.NEWLINE);
+		addSectionHeader(document, "Execution Log");
+		if (consoleOutput != null && !consoleOutput.isEmpty()) {
+			addCodeBlock(document, consoleOutput);
+		} else {
+			document.add(new Paragraph("(No console output)", FONT_BODY));
 		}
 
 		document.close();

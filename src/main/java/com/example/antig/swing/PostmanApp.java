@@ -2,17 +2,22 @@ package com.example.antig.swing;
 
 import java.awt.BorderLayout;
 import java.awt.Component;
+import java.awt.Desktop;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.File;
+import java.io.FileWriter;
+import java.io.PrintWriter;
 import java.net.URLEncoder;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -20,11 +25,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
-import java.io.FileWriter;
-import java.io.PrintWriter;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.awt.Desktop;
 
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
@@ -118,6 +118,8 @@ public class PostmanApp extends JFrame {
 	private Exception lastExecutionException;
 	private Map<String, String> lastExecutionRequestHeaders;
 	private String lastExecutionRequestBody;
+	private String lastExecutionConsoleLog;
+	private int consoleStartOffset = 0; // To track log start for current request
 
 	public PostmanApp() throws KeyManagementException, NoSuchAlgorithmException {
 		this.httpClientService = new HttpClientService();
@@ -431,8 +433,6 @@ public class PostmanApp extends JFrame {
 			}
 		});
 
-
-
 		JPanel leftPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
 		leftPanel.add(methodComboBox);
 		leftPanel.add(Box.createHorizontalStrut(5));
@@ -462,16 +462,16 @@ public class PostmanApp extends JFrame {
 		}
 
 		PostmanRequest req = (PostmanRequest) currentNode;
-		
+
 		if (lastExecutionResponse == null && lastExecutionException == null) {
-			int choice = JOptionPane.showConfirmDialog(this, 
+			int choice = JOptionPane.showConfirmDialog(this,
 					"No recent execution found in memory.\nDo you want to run the request now and generate the report?",
 					"No Execution Data", JOptionPane.YES_NO_OPTION);
 			if (choice == JOptionPane.YES_OPTION) {
 				sendRequest();
-				// We need to wait for worker to finish... this is async. 
+				// We need to wait for worker to finish... this is async.
 				// For now let's just return.
-				return; 
+				return;
 			} else {
 				return;
 			}
@@ -480,19 +480,22 @@ public class PostmanApp extends JFrame {
 		try {
 			// Save to temp file
 			File tempFile = File.createTempFile("antig_report_" + req.getId() + "_", ".pdf");
-			
+
 			com.example.antig.swing.service.PdfReportService pdfService = new com.example.antig.swing.service.PdfReportService();
-			
+
 			String projectName = rootCollection != null ? rootCollection.getName() : "Unknown Project";
-			
-			pdfService.generateReport(req, projectName, lastExecutionRequestHeaders, lastExecutionRequestBody, 
-					lastExecutionResponse, lastExecutionException, tempFile);
-				
+
+			// Use captured execution log instead of full area
+			String consoleOutput = lastExecutionConsoleLog != null ? lastExecutionConsoleLog : "";
+
+			pdfService.generateReport(req, projectName, lastExecutionRequestHeaders, lastExecutionRequestBody,
+					lastExecutionResponse, lastExecutionException, consoleOutput, tempFile);
+
 			// Open immediately
 			if (tempFile.exists()) {
 				java.awt.Desktop.getDesktop().open(tempFile);
 			}
-			
+
 		} catch (Exception e) {
 			e.printStackTrace();
 			JOptionPane.showMessageDialog(this, "Error generating report: " + e.getMessage());
@@ -706,8 +709,7 @@ public class PostmanApp extends JFrame {
 
 			// Convert to XML model (no parent references), then back to PostmanNode
 			// This avoids cyclic serialization issues
-			com.example.antig.swing.model.xml.XmlNode xmlNode = com.example.antig.swing.service.NodeConverter
-					.toXmlNode(node);
+			com.example.antig.swing.model.xml.XmlNode xmlNode = com.example.antig.swing.service.NodeConverter.toXmlNode(node);
 
 			if (xmlNode == null) {
 				throw new RuntimeException("Failed to convert node to XML (returned null)");
@@ -874,193 +876,221 @@ public class PostmanApp extends JFrame {
 		PostmanRequest req = (PostmanRequest) currentNode;
 		saveCurrentNodeState(); // Ensure latest edits are saved
 
-		// 1. Initial Environment
+		// Capture start offset of console for this request
+		consoleStartOffset = consoleTextArea.getDocument().getLength();
+		
+		// Reset transient state to avoid "stale" data from previous success
+		lastExecutionResponse = null;
+		lastExecutionException = null;
+		lastExecutionRequestHeaders = null;
+		lastExecutionRequestBody = null;
+		lastExecutionConsoleLog = null;
 
-		Map<String, Object> variables = createVariableMap(req);
-
-		// 2. Script Engine Setup
-		ScriptEngine engine = new ScriptEngineManager().getEngineByName("nashorn");
-		if (engine == null) {
-			// Fallback if nashorn is not found (e.g. newer Java versions without
-			// dependency)
-			engine = new ScriptEngineManager().getEngineByName("js");
-		}
-
-		if (engine == null) {
-			JOptionPane.showMessageDialog(this,
-					"JavaScript engine not found. Please ensure Nashorn or GraalJS is available.");
-			return;
-		}
-
-		ScriptEngine fEngine = engine;
-
-		for (String k : variables.keySet()) {
-			fEngine.put(k, variables.get(k));
-		}
-
-		String prescript = createPrescript(req);
-
-		if (prescript != null && !prescript.trim().isEmpty()) {
 			try {
-				fEngine.eval(prescript);
-			} catch (Exception e) {
-				log.error("Prescript error", e);
-				nodeConfigPanel.getResponseArea().setText("Prescript Error: " + e.getMessage());
-				nodeConfigPanel.setResponseBodySyntax(SyntaxConstants.SYNTAX_STYLE_NONE);
-				return;
-			}
-		}
+				// 1. Initial Environment
 
-		// 4. Prepare Request (using potentially modified env)
-		Map<String, String> headers = createHeaders(currentNode, variables, true);
+				Map<String, Object> variables = createVariableMap(req);
 
-		// 5. Body Formatting & Content-Type
-		String bodyType = req.getBodyType() != null ? req.getBodyType() : "TEXT";
-		String bodyToSend = req.getBody();
-
-		if ("FORM ENCODED".equalsIgnoreCase(bodyType)) {
-			// Parse properties to map and convert to URL encoded
-			Map<String, String> formParams = parseProperties(bodyToSend);
-			StringBuilder encoded = new StringBuilder();
-			for (Map.Entry<String, String> entry : formParams.entrySet()) {
-				if (encoded.length() > 0) {
-					encoded.append("&");
+				// 2. Script Engine Setup
+				ScriptEngine engine = new ScriptEngineManager().getEngineByName("nashorn");
+				if (engine == null) {
+					// Fallback if nashorn is not found (e.g. newer Java versions without
+					// dependency)
+					engine = new ScriptEngineManager().getEngineByName("js");
 				}
-				encoded.append(URLEncoder.encode(entry.getKey(), StandardCharsets.UTF_8));
-				if (entry.getValue() != null) {
-					encoded.append("=").append(URLEncoder.encode(entry.getValue(), StandardCharsets.UTF_8));
+
+				if (engine == null) {
+					JOptionPane.showMessageDialog(this,
+							"JavaScript engine not found. Please ensure Nashorn or GraalJS is available.");
+					// Record as exception
+					lastExecutionException = new RuntimeException("JavaScript engine not found.");
+					captureConsoleLog();
+					return;
 				}
-			}
-			bodyToSend = encoded.toString();
-			headers.put("Content-Type", "application/x-www-form-urlencoded");
-		} else if ("JSON".equalsIgnoreCase(bodyType)) {
-			headers.put("Content-Type", "application/json");
-		} else if ("XML".equalsIgnoreCase(bodyType)) {
-			headers.put("Content-Type", "application/xml");
-		} else if ("TEXT".equalsIgnoreCase(bodyType)) {
-			headers.put("Content-Type", "text/plain");
-		}
 
-		// 6. Send Request
-//		nodeConfigPanel.selectExecutionTab();
-		sendButton.setEnabled(false);
-		nodeConfigPanel.getResponseArea().setText("Sending request...");
-		nodeConfigPanel.setResponseBodySyntax(SyntaxConstants.SYNTAX_STYLE_NONE);
+				ScriptEngine fEngine = engine;
 
-		String finalBody = bodyToSend;
-		Map<String, String> finalHeaders = headers;
+				for (String k : variables.keySet()) {
+					fEngine.put(k, variables.get(k));
+				}
 
-		SwingWorker<HttpResponse<String>, Void> worker = new SwingWorker<>() {
-			@Override
-			protected HttpResponse<String> doInBackground() throws Exception {
+				String prescript = createPrescript(req);
 
-				String url = parse(req.getUrl(), variables);
-				String body = parse(finalBody, variables);
-
-				System.out.println("> " + url);
-
-				return httpClientService.sendRequest(url, req.getMethod(), body, finalHeaders, req.getTimeout(),
-						req.getHttpVersion());
-			}
-
-			@Override
-			protected void done() {
-				// Display Request in execution tabs (always, even on error)
-				// Request Headers
-				StringBuilder reqHeadersSb = new StringBuilder();
-				finalHeaders.forEach((k, v) -> reqHeadersSb.append(k).append(": ").append(v).append("\n"));
-				nodeConfigPanel.setRequestHeaders(reqHeadersSb.toString());
-
-				// Request Body
-				nodeConfigPanel.setRequestBody(finalBody != null ? finalBody : "");
-
-				HttpResponse<String> response = null;
-				Exception executionException = null;
-
-				try {
+				if (prescript != null && !prescript.trim().isEmpty()) {
 					try {
-						response = get();
-					} catch (Exception ex) {
-						ex.printStackTrace();
-						executionException = ex;
-					}
-
-					// 7. Postscript (Run even if request failed)
-					if (response != null) {
-						fEngine.put("response", response);
-					}
-
-					String postscript = createPostscript(req);
-
-					if (postscript != null && !postscript.trim().isEmpty()) {
-						try {
-							fEngine.eval(postscript);
-						} catch (Exception ex) {
-							ex.printStackTrace();
-							nodeConfigPanel.getResponseArea().append("\n\n[Postscript Error] " + ex.getMessage());
-						}
-					}
-
-					// 8. Display Response or Error
-					if (response != null) {
-						// Response Headers
-						StringBuilder respHeadersSb = new StringBuilder();
-						respHeadersSb.append("Status: ").append(response.statusCode()).append("\n\n");
-						response.headers().map()
-								.forEach((k, v) -> respHeadersSb.append(k).append(": ").append(v).append("\n"));
-						nodeConfigPanel.setResponseHeaders(respHeadersSb.toString());
-
-						// Response Body (with JSON formatting if applicable)
-						String responseBody;
-						String syntaxStyle = SyntaxConstants.SYNTAX_STYLE_NONE;
-
-						// Determine syntax from Content-Type header
-						String contentType = response.headers().firstValue("Content-Type").orElse("").toLowerCase();
-						if (contentType.contains("json")) {
-							syntaxStyle = SyntaxConstants.SYNTAX_STYLE_JSON;
-						} else if (contentType.contains("xml")) {
-							syntaxStyle = SyntaxConstants.SYNTAX_STYLE_XML;
-						} else if (contentType.contains("html")) {
-							syntaxStyle = SyntaxConstants.SYNTAX_STYLE_HTML;
-						}
-
-						try {
-							Object json = objectMapper.readValue(response.body(), Object.class);
-							responseBody = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(json);
-							// If parsing succeeded, it is JSON
-							syntaxStyle = SyntaxConstants.SYNTAX_STYLE_JSON;
-						} catch (Exception e) {
-							responseBody = response.body();
-						}
-						nodeConfigPanel.setResponseBody(responseBody);
-						nodeConfigPanel.setResponseBodySyntax(syntaxStyle);
-
-						// Also set the old responseArea (now just shows response body since we have
-						// separate tabs)
-						nodeConfigPanel.getResponseArea().setText(responseBody);
-					} else if (executionException != null) {
-						String errorMsg = "Error: " + executionException.getMessage();
-						nodeConfigPanel.setResponseBody(errorMsg);
+						fEngine.eval(prescript);
+					} catch (Exception e) {
+						log.error("Prescript error", e);
+						nodeConfigPanel.getResponseArea().setText("Prescript Error: " + e.getMessage());
 						nodeConfigPanel.setResponseBodySyntax(SyntaxConstants.SYNTAX_STYLE_NONE);
-						nodeConfigPanel.getResponseArea().setText(errorMsg);
-						executionException.printStackTrace();
+						// Record as exception
+						lastExecutionException = e;
+						captureConsoleLog();
+						return;
 					}
-				} finally {
-					sendButton.setEnabled(true);
-					sendButton.setEnabled(true);
-					// Log execution to file
-					logExecution(req, finalHeaders, finalBody, response, executionException);
-					
-					// Store for PDF report
-					lastExecutionResponse = response;
-					lastExecutionException = executionException;
-					lastExecutionRequestHeaders = finalHeaders;
-					lastExecutionRequestBody = finalBody;
 				}
-			}
-		};
 
-		worker.execute();
+				// 4. Prepare Request (using potentially modified env)
+				Map<String, String> headers = createHeaders(currentNode, variables, true);
+
+				// 5. Body Formatting & Content-Type
+				String bodyType = req.getBodyType() != null ? req.getBodyType() : "TEXT";
+				String bodyToSend = req.getBody();
+
+				if ("FORM ENCODED".equalsIgnoreCase(bodyType)) {
+					// Parse properties to map and convert to URL encoded
+					Map<String, String> formParams = parseProperties(bodyToSend);
+					StringBuilder encoded = new StringBuilder();
+					for (Map.Entry<String, String> entry : formParams.entrySet()) {
+						if (encoded.length() > 0) {
+							encoded.append("&");
+						}
+						encoded.append(URLEncoder.encode(entry.getKey(), StandardCharsets.UTF_8));
+						if (entry.getValue() != null) {
+							encoded.append("=").append(URLEncoder.encode(entry.getValue(), StandardCharsets.UTF_8));
+						}
+					}
+					bodyToSend = encoded.toString();
+					headers.put("Content-Type", "application/x-www-form-urlencoded");
+				} else if ("JSON".equalsIgnoreCase(bodyType)) {
+					headers.put("Content-Type", "application/json");
+				} else if ("XML".equalsIgnoreCase(bodyType)) {
+					headers.put("Content-Type", "application/xml");
+				} else if ("TEXT".equalsIgnoreCase(bodyType)) {
+					headers.put("Content-Type", "text/plain");
+				}
+
+				// 6. Send Request
+				// nodeConfigPanel.selectExecutionTab();
+				sendButton.setEnabled(false);
+				nodeConfigPanel.getResponseArea().setText("Sending request...");
+				nodeConfigPanel.setResponseBodySyntax(SyntaxConstants.SYNTAX_STYLE_NONE);
+
+				String finalBody = bodyToSend;
+				Map<String, String> finalHeaders = headers;
+
+				SwingWorker<HttpResponse<String>, Void> worker = new SwingWorker<>() {
+					@Override
+					protected HttpResponse<String> doInBackground() throws Exception {
+
+						String url = parse(req.getUrl(), variables);
+						String body = parse(finalBody, variables);
+
+						System.out.println("> " + url);
+
+						return httpClientService.sendRequest(url, req.getMethod(), body, finalHeaders, req.getTimeout(),
+								req.getHttpVersion());
+					}
+
+					@Override
+					protected void done() {
+						// Display Request in execution tabs (always, even on error)
+						// Request Headers
+						StringBuilder reqHeadersSb = new StringBuilder();
+						finalHeaders.forEach((k, v) -> reqHeadersSb.append(k).append(": ").append(v).append("\n"));
+						nodeConfigPanel.setRequestHeaders(reqHeadersSb.toString());
+
+						// Request Body
+						nodeConfigPanel.setRequestBody(finalBody != null ? finalBody : "");
+
+						HttpResponse<String> response = null;
+						Exception executionException = null;
+
+						try {
+							try {
+								response = get();
+							} catch (Exception ex) {
+								ex.printStackTrace();
+								executionException = ex;
+							}
+
+							// 7. Postscript (Run even if request failed)
+							if (response != null) {
+								fEngine.put("response", response);
+							}
+
+							String postscript = createPostscript(req);
+
+							if (postscript != null && !postscript.trim().isEmpty()) {
+								try {
+									fEngine.eval(postscript);
+								} catch (Exception ex) {
+									ex.printStackTrace();
+									nodeConfigPanel.getResponseArea().append("\n\n[Postscript Error] " + ex.getMessage());
+								}
+							}
+
+							// 8. Display Response or Error
+							if (response != null) {
+								// Response Headers
+								StringBuilder respHeadersSb = new StringBuilder();
+								respHeadersSb.append("Status: ").append(response.statusCode()).append("\n\n");
+								response.headers().map()
+										.forEach((k, v) -> respHeadersSb.append(k).append(": ").append(v).append("\n"));
+								nodeConfigPanel.setResponseHeaders(respHeadersSb.toString());
+
+								// Response Body (with JSON formatting if applicable)
+								String responseBody;
+								String syntaxStyle = SyntaxConstants.SYNTAX_STYLE_NONE;
+
+								// Determine syntax from Content-Type header
+								String contentType = response.headers().firstValue("Content-Type").orElse("").toLowerCase();
+								if (contentType.contains("json")) {
+									syntaxStyle = SyntaxConstants.SYNTAX_STYLE_JSON;
+								} else if (contentType.contains("xml")) {
+									syntaxStyle = SyntaxConstants.SYNTAX_STYLE_XML;
+								} else if (contentType.contains("html")) {
+									syntaxStyle = SyntaxConstants.SYNTAX_STYLE_HTML;
+								}
+
+								try {
+									Object json = objectMapper.readValue(response.body(), Object.class);
+									responseBody = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(json);
+									// If parsing succeeded, it is JSON
+									syntaxStyle = SyntaxConstants.SYNTAX_STYLE_JSON;
+								} catch (Exception e) {
+									responseBody = response.body();
+								}
+								nodeConfigPanel.setResponseBody(responseBody);
+								nodeConfigPanel.setResponseBodySyntax(syntaxStyle);
+
+								// Also set the old responseArea (now just shows response body since we have
+								// separate tabs)
+								nodeConfigPanel.getResponseArea().setText(responseBody);
+							} else if (executionException != null) {
+								String errorMsg = "Error: " + executionException.getMessage();
+								nodeConfigPanel.setResponseBody(errorMsg);
+								nodeConfigPanel.setResponseBodySyntax(SyntaxConstants.SYNTAX_STYLE_NONE);
+								nodeConfigPanel.getResponseArea().setText(errorMsg);
+								executionException.printStackTrace();
+							}
+						} finally {
+							sendButton.setEnabled(true);
+							sendButton.setEnabled(true);
+							// Log execution to file
+							logExecution(req, finalHeaders, finalBody, response, executionException);
+
+							// Store for PDF report
+							lastExecutionResponse = response;
+							lastExecutionException = executionException;
+							lastExecutionRequestHeaders = finalHeaders;
+							lastExecutionRequestBody = finalBody;
+
+							// Capture console log for this request using invokeLater to catch pending prints (e.g. from printStackTrace)
+							SwingUtilities.invokeLater(() -> captureConsoleLog());
+						}
+					}
+				};
+
+				worker.execute();
+
+			} catch (Exception e) {
+				// Handle synchronous setup errors (e.g. header parsing, global var failures)
+				e.printStackTrace();
+				JOptionPane.showMessageDialog(this, "Error preparing request: " + e.getMessage());
+				lastExecutionException = e;
+				captureConsoleLog();
+			}
 	}
 
 	private Map<String, String> parseProperties(String text) {
@@ -1660,7 +1690,7 @@ public class PostmanApp extends JFrame {
 	private void initConsole() {
 		java.io.PrintStream originalOut = System.out;
 		java.io.PrintStream originalErr = System.err;
-		
+
 		System.setOut(new java.io.PrintStream(new ConsoleOutputStream(consoleTextArea, originalOut)));
 		System.setErr(new java.io.PrintStream(new ConsoleOutputStream(consoleTextArea, originalErr)));
 	}
@@ -1744,7 +1774,7 @@ public class PostmanApp extends JFrame {
 				textArea.setCaretPosition(textArea.getDocument().getLength());
 			});
 		}
-		
+
 		@Override
 		public void flush() throws java.io.IOException {
 			target.flush();
@@ -1756,7 +1786,7 @@ public class PostmanApp extends JFrame {
 			JOptionPane.showMessageDialog(this, "No project saved. Log file is not available.");
 			return;
 		}
-		
+
 		File logFile = new File(currentProjectFile.getParentFile(), currentProjectFile.getName() + ".log");
 		if (!logFile.exists()) {
 			JOptionPane.showMessageDialog(this, "Log file does not exist yet.\nExecute a request to generate it.");
@@ -1770,18 +1800,33 @@ public class PostmanApp extends JFrame {
 			JOptionPane.showMessageDialog(this, "Failed to open log file: " + e.getMessage());
 		}
 	}
+	
+	private void captureConsoleLog() {
+		try {
+			int endOffset = consoleTextArea.getDocument().getLength();
+			// Careful with length, ensure non-negative
+			if (endOffset > consoleStartOffset) {
+				lastExecutionConsoleLog = consoleTextArea.getText(consoleStartOffset, endOffset - consoleStartOffset);
+			} else {
+				lastExecutionConsoleLog = "";
+			}
+		} catch (Exception ex) {
+			ex.printStackTrace();
+			lastExecutionConsoleLog = "";
+		}
+	}
 
-	private void logExecution(PostmanRequest req, Map<String, String> requestHeaders, String requestBody, 
+	private void logExecution(PostmanRequest req, Map<String, String> requestHeaders, String requestBody,
 			HttpResponse<String> response, Exception exception) {
 		if (currentProjectFile == null) {
 			return; // Cannot log if project is not saved
 		}
 
 		File logFile = new File(currentProjectFile.getParentFile(), currentProjectFile.getName() + ".log");
-		
+
 		try (PrintWriter writer = new PrintWriter(new FileWriter(logFile, true))) {
 			DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS");
-			
+
 			writer.println("================================================================================");
 			writer.println("Execution Date: " + LocalDateTime.now().format(dtf));
 			writer.println("Request: " + req.getMethod() + " " + req.getUrl());
@@ -1797,7 +1842,7 @@ public class PostmanApp extends JFrame {
 				writer.println("(empty)");
 			}
 			writer.println();
-			
+
 			if (response != null) {
 				writer.println("Response Status: " + response.statusCode());
 				writer.println("Response Headers:");
@@ -1814,10 +1859,10 @@ public class PostmanApp extends JFrame {
 				writer.println("Execution Failed:");
 				exception.printStackTrace(writer);
 			}
-			
+
 			writer.println("================================================================================");
 			writer.println();
-			
+
 		} catch (Exception e) {
 			System.err.println("Failed to write to log file: " + e.getMessage());
 			e.printStackTrace();
