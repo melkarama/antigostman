@@ -87,6 +87,7 @@
 		</dependency>
 	</dependencies>
 	<build>
+		<finalName>antigostman</finalName>
 		<plugins>
 			<plugin>
 				<groupId>org.springframework.boot</groupId>

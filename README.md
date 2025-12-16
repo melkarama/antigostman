@@ -1,94 +1,98 @@
-# Antigostman - Advanced Java HTTP Client
-    
-**Antigostman** is a powerful, lightweight, and native Java Swing application designed to emulate the core functionality of Postman. It provides a robust environment for testing, documenting, and executing HTTP requests with a focus on performance and developer productivity.
+<div align="center">
 
-## 🚀 Features
+# ⚡ Antigostman
+### The Native API Client You've Been Waiting For.
 
-### 📡 Request Execution
-*   **Methods**: Full support for `GET`, `POST`, `PUT`, `DELETE`, and `PATCH`.
-*   **Protocols**: Switch between **HTTP/1.1** and **HTTP/2**.
-*   **Body Types**: Support for `JSON`, `XML`, `TEXT`, and `x-www-form-urlencoded` payloads.
-*   **Timeout**: Configurable request timeout.
-*   **Download Mode**: Check **"DL Content"** to automatically download the response as a file. The app detects the file type (via Apache Tika) and opens it with your default system viewer.
+[![License](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
+[![Java](https://img.shields.io/badge/Java-17%2B-orange.svg?style=flat-square)](https://www.java.com/)
+[![Swing](https://img.shields.io/badge/UI-Swing-green.svg?style=flat-square)](https://docs.oracle.com/javase/tutorial/uiswing/)
 
-### ⚡ Scripting & Automation
-*   **JavaScript Engine**: Built-in support for **Prescript** (before request) and **Postscript** (after response) execution using the Nashorn/JS engine.
-*   **Variables**:
-    *   **Environment Variables**: Define variables at the Request, Folder, or Collection level.
-    *   **Global Variables**: Project-wide variables accessible everywhere.
-    *   **Variable Interpolation**: Use `{{variableName}}` syntax in URLs, Headers, and Body.
-*   **Console**: Integrated debug console (`console.log`) to view script outputs and execution logs.
+<p align="center">
+  <b>Fast</b> • <b>Native</b> • <b>Bloat-free</b>
+</p>
 
-### 📊 Response Analysis
-*   **Dual View**: Separate tabs for Request and Response.
-*   **Syntax Highlighting**: Beautiful syntax highlighting for JSON, XML, HTML, and Properties.
-*   **Formatted Preview**: Auto-formatting (Pretty Print) for JSON and XML responses.
+<br>
 
-### 📝 Reporting & Sharing
-*   **PDF Reports**: Generate detailed execution reports including request/response headers, bodies, and logs.
-*   **Email Integration**: One-click button to generate a PDF and attach it to a new email (supports Outlook on Windows and Thunderbird on Linux).
+Antigostman brings the power of professional API testing back to your desktop without the heavy browser engine. 
+**100% Offline. No Sign-up. No Cloud Sync.** Just you and your code.
 
-### 🛠 Productivity & UI
-*   **Themes**: Modern UI with support for **Light** and **Dark** modes (powered by FlatLaf).
-*   **Project Management**: Save and load projects as XML files.
-*   **Recent Projects**: Quick access to recently opened projects.
-*   **Tree View**: Organize requests into nested Folders and Collections.
-*   **Drag & Drop**: Reorder requests and folders easily.
+[Get Started](#getting-started) • [Features](#key-features) • [Shortcuts](#keyboard-mastery)
 
-## ⌨️ Shortcuts
+</div>
+
+---
+
+## <a id="why-antigostman"></a>🌟 Why Antigostman?
+
+We believe tools should respect your resources. Antigostman is built with **pure Java Swing**, delivering a snappy, responsive experience that uses a fraction of the memory of Electron-based alternatives.
+
+## <a id="key-features"></a>🔥 Key Features
+
+### 📡 **Professional Request Builder**
+*   **Complete Control**: Support for `GET`, `POST`, `PUT`, `DELETE`, `PATCH`.
+*   **Modern Protocols**: Seamlessly toggle between **HTTP/1.1** and **HTTP/2**.
+*   **Smart Downloads**: Check the `DL Content` box and let our intelligent **file detection** (powered by Apache Tika) handle the rest.
+
+### 🧠 **Advanced Automation**
+*   **Scripting Engine**: Write `JavaScript` pre-request and test scripts securely.
+*   **Dynamic Variables**: Use `{{double_braces}}` to inject environment variables anywhere.
+*   **Console Debugging**: A built-in terminal to inspect your logic in real-time.
+
+### 📊 **Beautiful Reporting**
+*   **One-Click PDF**: Generate stunning PDF reports of your test runs.
+*   **Email Integration**: Send reports directly via **Outlook** or **Thunderbird** without leaving the app.
+
+### 🎨 **Designed for Developers**
+*   **Theme Aware**: Automatically adapts to **Light** or **Dark** environments.
+*   **Syntax Highlighting**: Rich coloring for JSON, XML, properties, and more.
+*   **Project Management**: Save your workspaces as portable XML files.
+
+---
+
+## <a id="getting-started"></a>🚀 Getting Started
+
+### Prerequisites
+*   **Java JDK 17** or higher
+*   **Maven** (for building from source)
+
+### Installation
+
+```bash
+# 1. Clone the magic
+git clone https://github.com/yourusername/antigostman.git
+
+# 2. Build the ship
+cd antigostman
+mvn clean package
+
+# 3. Launch!
+cd target
+java -jar antigostman.jar
+```
+
+---
+
+## <a id="keyboard-mastery"></a>🎹 Keyboard Mastery
+
+Stay in the flow with these essential shortcuts.
 
 | Shortcut | Action |
 | :--- | :--- |
-| `Ctrl + Enter` | **Execute Request** (Send) |
-| `Ctrl + S` | **Save Project** |
-| `F2` | **Rename** selected node |
-| `F3` | **Clone** selected node |
-| `Delete` | **Delete** selected node |
+| `Ctrl` + `Enter` | **Send Request** (The big button!) |
+| `Ctrl` + `S` | **Save Project** |
+| `F2` | **Rename** current item |
+| `F3` | **Clone** current item |
+| `Delete` | **Delete** selected item |
 
-## 🛠️ Technology Stack
+---
 
-*   **Language**: Java 17
-*   **UI Framework**: Swing
-*   **Networking**: `java.net.http.HttpClient`
-*   **Build Tool**: Maven
-*   **Key Libraries**:
-    *   `FlatLaf` (UI Themes)
-    *   `RSyntaxTextArea` (Code Editor)
-    *   `Jackson` (JSON Processing)
-    *   `Apache Tika` (MIME Type Detection)
-    *   `OpenPDF` (PDF Generation)
-    *   `Lombok` (Boilerplate reduction)
+<div align="center">
 
-## 📦 Installation & Usage
+**Enjoying Antigostman?**  
+Give us a ⭐ on GitHub!
 
-### Prerequisites
-*   Java JDK 17 or higher
-*   Maven
+<br>
 
-### Build
-Clone the repository and build using Maven:
+<sub>Released under the MIT License.</sub>
 
-```bash
-git clone https://github.com/yourusername/antigostman.git
-cd antigostman
-mvn clean package
-```
-
-### Run
-You can run the application using the generated JAR file:
-
-```bash
-java -jar target/antigostman-1.2-SNAPSHOT.jar
-```
-
-Alternatively, on Windows, a `run-app.bat` script is generated in the `target` folder.
-
-## 📁 Project Structure
-
-The project saves data in a custom XML structure designed to prevent cyclic dependencies while maintaining the hierarchy of your collections.
-
-*   **Logs**: Execution logs are saved in `.log` files alongside your project XML file.
-*   **Temp Files**: Downloaded content and generated PDF reports are stored in the system's temporary directory (`/tmp` or `%TEMP%`).
-
-## 📄 License
-[MIT License](LICENSE)
+</div>
