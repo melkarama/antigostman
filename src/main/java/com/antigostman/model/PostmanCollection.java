@@ -1,4 +1,4 @@
-package com.example.antig.swing.model;
+package com.antigostman.model;
 
 import java.util.ArrayList;
 import java.util.List;

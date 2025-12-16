@@ -1,4 +1,4 @@
-package com.example.antig.swing.model;
+package com.antigostman.model;
 
 import java.util.LinkedHashMap;
 import java.util.Map;

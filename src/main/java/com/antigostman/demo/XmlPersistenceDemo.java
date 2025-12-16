@@ -1,12 +1,12 @@
-package com.example.antig.swing.demo;
+package com.antigostman.demo;
 
 import java.io.File;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import com.example.antig.swing.model.xml.XmlCollection;
-import com.example.antig.swing.model.xml.XmlFolder;
-import com.example.antig.swing.model.xml.XmlRequest;
+import com.antigostman.model.xml.XmlCollection;
+import com.antigostman.model.xml.XmlFolder;
+import com.antigostman.model.xml.XmlRequest;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 

@@ -1,4 +1,4 @@
-package com.example.antig.swing;
+package com.antigostman;
 
 import java.security.SecureRandom;
 import java.time.LocalDateTime;

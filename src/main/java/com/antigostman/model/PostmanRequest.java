@@ -1,4 +1,4 @@
-package com.example.antig.swing.model;
+package com.antigostman.model;
 
 public class PostmanRequest extends PostmanNode {
 	private String method = null;

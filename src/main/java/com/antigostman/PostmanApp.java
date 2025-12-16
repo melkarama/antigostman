@@ -1,4 +1,4 @@
-package com.example.antig.swing;
+package com.antigostman;
 
 import java.awt.BorderLayout;
 import java.awt.Component;
@@ -61,14 +61,14 @@ import javax.swing.tree.TreePath;
 import org.apache.commons.lang3.StringUtils;
 import org.fife.ui.rsyntaxtextarea.SyntaxConstants;
 
-import com.example.antig.swing.model.PostmanCollection;
-import com.example.antig.swing.model.PostmanFolder;
-import com.example.antig.swing.model.PostmanNode;
-import com.example.antig.swing.model.PostmanRequest;
-import com.example.antig.swing.service.ProjectService;
-import com.example.antig.swing.service.RecentProjectsManager;
-import com.example.antig.swing.ui.NodeConfigPanel;
-import com.example.antig.swing.ui.PostmanTreeCellRenderer;
+import com.antigostman.model.PostmanCollection;
+import com.antigostman.model.PostmanFolder;
+import com.antigostman.model.PostmanNode;
+import com.antigostman.model.PostmanRequest;
+import com.antigostman.service.ProjectService;
+import com.antigostman.service.RecentProjectsManager;
+import com.antigostman.ui.NodeConfigPanel;
+import com.antigostman.ui.PostmanTreeCellRenderer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import lombok.extern.slf4j.Slf4j;
@@ -527,7 +527,7 @@ public class PostmanApp extends JFrame {
 			// Save to temp file
 			File tempFile = File.createTempFile("antig_report_" + req.getId() + "_", ".pdf");
 
-			com.example.antig.swing.service.PdfReportService pdfService = new com.example.antig.swing.service.PdfReportService();
+			com.antigostman.service.PdfReportService pdfService = new com.antigostman.service.PdfReportService();
 
 			String projectName = rootCollection != null ? rootCollection.getName() : "Unknown Project";
 
@@ -571,7 +571,7 @@ public class PostmanApp extends JFrame {
 			// Generate PDF to a temp file
 			File tempFile = File.createTempFile("antig_report_" + req.getId() + "_", ".pdf");
 
-			com.example.antig.swing.service.PdfReportService pdfService = new com.example.antig.swing.service.PdfReportService();
+			com.antigostman.service.PdfReportService pdfService = new com.antigostman.service.PdfReportService();
 
 			String projectName = rootCollection != null ? rootCollection.getName() : "Unknown Project";
 
@@ -875,13 +875,13 @@ public class PostmanApp extends JFrame {
 
 			// Convert to XML model (no parent references), then back to PostmanNode
 			// This avoids cyclic serialization issues
-			com.example.antig.swing.model.xml.XmlNode xmlNode = com.example.antig.swing.service.NodeConverter.toXmlNode(node);
+			com.antigostman.model.xml.XmlNode xmlNode = com.antigostman.service.NodeConverter.toXmlNode(node);
 
 			if (xmlNode == null) {
 				throw new RuntimeException("Failed to convert node to XML (returned null)");
 			}
 
-			PostmanNode clone = com.example.antig.swing.service.NodeConverter.toPostmanNode(xmlNode);
+			PostmanNode clone = com.antigostman.service.NodeConverter.toPostmanNode(xmlNode);
 
 			if (clone == null) {
 				throw new RuntimeException("Failed to convert XML back to PostmanNode (returned null)");

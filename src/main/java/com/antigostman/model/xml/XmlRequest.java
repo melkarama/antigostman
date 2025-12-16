@@ -1,4 +1,4 @@
-package com.example.antig.swing.model.xml;
+package com.antigostman.model.xml;
 
 /**
  * XML-safe request node (leaf node).

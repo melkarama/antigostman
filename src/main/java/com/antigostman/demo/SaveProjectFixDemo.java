@@ -1,8 +1,8 @@
-package com.example.antig.swing.demo;
+package com.antigostman.demo;
 
-import com.example.antig.swing.model.*;
-import com.example.antig.swing.model.xml.*;
-import com.example.antig.swing.service.NodeConverter;
+import com.antigostman.model.*;
+import com.antigostman.model.xml.*;
+import com.antigostman.service.NodeConverter;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 

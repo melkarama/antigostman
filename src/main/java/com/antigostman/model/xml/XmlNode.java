@@ -1,4 +1,4 @@
-package com.example.antig.swing.model.xml;
+package com.antigostman.model.xml;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;

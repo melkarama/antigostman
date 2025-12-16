@@ -1,4 +1,4 @@
-package com.example.antig.swing.service;
+package com.antigostman.service;
 
 import java.awt.Color;
 import java.io.File;
@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Map;
 
-import com.example.antig.swing.model.PostmanRequest;
+import com.antigostman.model.PostmanRequest;
 import com.lowagie.text.Chunk;
 import com.lowagie.text.Document;
 import com.lowagie.text.DocumentException;

@@ -1,4 +1,4 @@
-package com.example.antig.swing.service;
+package com.antigostman.service;
 
 import java.io.File;
 import java.io.FileInputStream;

@@ -1,5 +1,5 @@
 
-package com.example.antig.swing;
+package com.antigostman;
 
 import java.io.IOException;
 import java.io.StringReader;

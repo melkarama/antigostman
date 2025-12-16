@@ -1,4 +1,4 @@
-package com.example.antig.swing.ui;
+package com.antigostman.ui;
 
 import java.awt.Color;
 import java.awt.Component;
@@ -12,9 +12,9 @@ import javax.swing.Icon;
 import javax.swing.JTree;
 import javax.swing.tree.DefaultTreeCellRenderer;
 
-import com.example.antig.swing.model.PostmanCollection;
-import com.example.antig.swing.model.PostmanFolder;
-import com.example.antig.swing.model.PostmanRequest;
+import com.antigostman.model.PostmanCollection;
+import com.antigostman.model.PostmanFolder;
+import com.antigostman.model.PostmanRequest;
 
 /**
  * Custom tree cell renderer that displays different icons for Collection,

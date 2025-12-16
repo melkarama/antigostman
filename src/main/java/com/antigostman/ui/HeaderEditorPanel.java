@@ -1,4 +1,4 @@
-package com.example.antig.swing.ui;
+package com.antigostman.ui;
 
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;

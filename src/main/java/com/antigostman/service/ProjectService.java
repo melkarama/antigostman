@@ -1,7 +1,7 @@
-package com.example.antig.swing.service;
+package com.antigostman.service;
 
-import com.example.antig.swing.model.PostmanCollection;
-import com.example.antig.swing.model.xml.XmlCollection;
+import com.antigostman.model.PostmanCollection;
+import com.antigostman.model.xml.XmlCollection;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 

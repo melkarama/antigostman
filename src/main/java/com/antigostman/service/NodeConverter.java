@@ -1,17 +1,17 @@
-package com.example.antig.swing.service;
+package com.antigostman.service;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 
-import com.example.antig.swing.model.PostmanCollection;
-import com.example.antig.swing.model.PostmanFolder;
-import com.example.antig.swing.model.PostmanNode;
-import com.example.antig.swing.model.PostmanRequest;
-import com.example.antig.swing.model.xml.XmlCollection;
-import com.example.antig.swing.model.xml.XmlFolder;
-import com.example.antig.swing.model.xml.XmlNode;
-import com.example.antig.swing.model.xml.XmlRequest;
+import com.antigostman.model.PostmanCollection;
+import com.antigostman.model.PostmanFolder;
+import com.antigostman.model.PostmanNode;
+import com.antigostman.model.PostmanRequest;
+import com.antigostman.model.xml.XmlCollection;
+import com.antigostman.model.xml.XmlFolder;
+import com.antigostman.model.xml.XmlNode;
+import com.antigostman.model.xml.XmlRequest;
 
 /**
  * Utility class for converting between Swing tree nodes (PostmanNode hierarchy)
@@ -308,15 +308,15 @@ public class NodeConverter {
 		}
 
 		// Check children
-		if (xmlNode instanceof com.example.antig.swing.model.xml.XmlCollection) {
-			com.example.antig.swing.model.xml.XmlCollection collection = (com.example.antig.swing.model.xml.XmlCollection) xmlNode;
+		if (xmlNode instanceof com.antigostman.model.xml.XmlCollection) {
+			com.antigostman.model.xml.XmlCollection collection = (com.antigostman.model.xml.XmlCollection) xmlNode;
 			if (collection.getChildren() != null) {
 				for (XmlNode child : collection.getChildren()) {
 					collectExpandedNodeIds(child, expandedIds);
 				}
 			}
-		} else if (xmlNode instanceof com.example.antig.swing.model.xml.XmlFolder) {
-			com.example.antig.swing.model.xml.XmlFolder folder = (com.example.antig.swing.model.xml.XmlFolder) xmlNode;
+		} else if (xmlNode instanceof com.antigostman.model.xml.XmlFolder) {
+			com.antigostman.model.xml.XmlFolder folder = (com.antigostman.model.xml.XmlFolder) xmlNode;
 			if (folder.getChildren() != null) {
 				for (XmlNode child : folder.getChildren()) {
 					collectExpandedNodeIds(child, expandedIds);

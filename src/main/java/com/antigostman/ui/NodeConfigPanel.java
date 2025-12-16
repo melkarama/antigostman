@@ -1,4 +1,4 @@
-package com.example.antig.swing.ui;
+package com.antigostman.ui;
 
 import java.awt.BorderLayout;
 import java.awt.Font;
@@ -37,9 +37,9 @@ import org.fife.ui.rsyntaxtextarea.RSyntaxTextArea;
 import org.fife.ui.rsyntaxtextarea.SyntaxConstants;
 import org.fife.ui.rtextarea.RTextScrollPane;
 
-import com.example.antig.swing.model.PostmanNode;
-import com.example.antig.swing.model.PostmanRequest;
-import com.example.antig.swing.service.RecentProjectsManager;
+import com.antigostman.model.PostmanNode;
+import com.antigostman.model.PostmanRequest;
+import com.antigostman.service.RecentProjectsManager;
 
 /**
  * Tabbed panel for configuring nodes (Collection, Folder, Request).
@@ -512,7 +512,7 @@ public class NodeConfigPanel extends JPanel {
 			postscriptArea.setText(node.getPostscript() != null ? node.getPostscript() : "");
 
 			// Handle Global Variables tab for root node
-			if (node instanceof com.example.antig.swing.model.PostmanCollection && node.getParent() == null) {
+			if (node instanceof com.antigostman.model.PostmanCollection && node.getParent() == null) {
 				// It's the root collection
 				// It's the root collection
 				boolean tabExists = false;
@@ -526,7 +526,7 @@ public class NodeConfigPanel extends JPanel {
 				if (!tabExists) {
 					tabbedPane.addTab("Global Variables", new RTextScrollPane(globalVarsArea));
 				}
-				com.example.antig.swing.model.PostmanCollection col = (com.example.antig.swing.model.PostmanCollection) node;
+				com.antigostman.model.PostmanCollection col = (com.antigostman.model.PostmanCollection) node;
 				globalVarsArea.setText(mapToProperties(col.getGlobalVariables()));
 				
 				// Handle Settings tab for root node
@@ -714,8 +714,8 @@ public class NodeConfigPanel extends JPanel {
 		currentNode.setPostscript(postscriptArea.getText());
 
 		// Save global variables if root
-		if (currentNode instanceof com.example.antig.swing.model.PostmanCollection && currentNode.getParent() == null) {
-			com.example.antig.swing.model.PostmanCollection col = (com.example.antig.swing.model.PostmanCollection) currentNode;
+		if (currentNode instanceof com.antigostman.model.PostmanCollection && currentNode.getParent() == null) {
+			com.antigostman.model.PostmanCollection col = (com.antigostman.model.PostmanCollection) currentNode;
 			Map<String, String> vars = propertiesToMap(globalVarsArea.getText());
 			col.setGlobalVariables(vars);
 			
