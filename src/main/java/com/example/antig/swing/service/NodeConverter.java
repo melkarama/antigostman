@@ -160,6 +160,7 @@ public class NodeConverter {
 			xmlRequest.setExecutionTabIndex(request.getExecutionTabIndex());
 			xmlRequest.setTimeout(request.getTimeout());
 			xmlRequest.setHttpVersion(request.getHttpVersion() != null ? request.getHttpVersion() : "HTTP/1.1");
+			xmlRequest.setDownloadContent(request.isDownloadContent());
 			xmlNode = xmlRequest;
 
 		} else {
@@ -283,6 +284,7 @@ public class NodeConverter {
 			request.setExecutionTabIndex(xmlRequest.getExecutionTabIndex());
 			request.setTimeout(xmlRequest.getTimeout());
 			request.setHttpVersion(xmlRequest.getHttpVersion() != null ? xmlRequest.getHttpVersion() : "HTTP/1.1");
+			request.setDownloadContent(xmlRequest.isDownloadContent());
 			postmanNode = request;
 
 		} else {

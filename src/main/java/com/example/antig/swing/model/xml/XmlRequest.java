@@ -89,4 +89,14 @@ public class XmlRequest extends XmlNode {
     public void setHttpVersion(String httpVersion) {
         this.httpVersion = httpVersion;
     }
+    
+    private boolean downloadContent = false;
+    
+    public boolean isDownloadContent() {
+        return downloadContent;
+    }
+    
+    public void setDownloadContent(boolean downloadContent) {
+        this.downloadContent = downloadContent;
+    }
 }

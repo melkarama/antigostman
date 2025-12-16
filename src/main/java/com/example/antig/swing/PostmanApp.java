@@ -477,6 +477,16 @@ public class PostmanApp extends JFrame {
 
 		dlContentCheckbox = new JCheckBox("DL Content");
 		dlContentCheckbox.setToolTipText("Download response as file and open it");
+		dlContentCheckbox.addActionListener(e -> {
+			if (isLoadingNode) {
+				return;
+			}
+			if (currentNode instanceof PostmanRequest) {
+				PostmanRequest req = (PostmanRequest) currentNode;
+				req.setDownloadContent(dlContentCheckbox.isSelected());
+				// autoSaveProject();
+			}
+		});
 		rightPanel.add(dlContentCheckbox);
 		rightPanel.add(Box.createHorizontalStrut(5));
 
@@ -692,6 +702,7 @@ public class PostmanApp extends JFrame {
 				bodyTypeComboBox.setSelectedItem(req.getBodyType() != null ? req.getBodyType() : "TEXT");
 				httpVersionComboBox.setSelectedItem(req.getHttpVersion() != null ? req.getHttpVersion() : "HTTP/1.1");
 				timeoutSpinner.setValue(req.getTimeout());
+				dlContentCheckbox.setSelected(req.isDownloadContent());
 
 				// Show request toolbar
 				requestToolbar.setVisible(true);
@@ -732,6 +743,7 @@ public class PostmanApp extends JFrame {
 			req.setBodyType((String) bodyTypeComboBox.getSelectedItem());
 			req.setHttpVersion((String) httpVersionComboBox.getSelectedItem());
 			req.setTimeout(((Number) timeoutSpinner.getValue()).longValue());
+			req.setDownloadContent(dlContentCheckbox.isSelected());
 //			System.out.println("  Saved to model - URL: " + req.getUrl() + ", Method: " + req.getMethod() + ", BodyType: "
 //					+ req.getBodyType());
 		}
@@ -1171,12 +1183,18 @@ public class PostmanApp extends JFrame {
 									} else if (mimeType.contains("image/jpeg")) {
 										ext = ".jpg";
 									}
-								}
-
-								File tempFile = File.createTempFile("antig_download_" + System.currentTimeMillis() + "_", ext);
-								java.nio.file.Files.write(tempFile.toPath(), binaryResp.body());
-
-								System.out.println("Saved download to: " + tempFile.getAbsolutePath());
+									}
+                                    
+                                    // Generate filename: DL-yyyyMMddHHmmss
+									String timestamp = java.time.LocalDateTime.now()
+											.format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
+									String filename = "DL-" + timestamp + ext;
+									File tempDir = new File(System.getProperty("java.io.tmpdir"));
+									File tempFile = new File(tempDir, filename);
+									
+									java.nio.file.Files.write(tempFile.toPath(), binaryResp.body());
+									
+									System.out.println("Saved download to: " + tempFile.getAbsolutePath());
 
 								// Open file
 								if (java.awt.Desktop.isDesktopSupported()) {
