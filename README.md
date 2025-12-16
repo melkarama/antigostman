@@ -1,6 +1,6 @@
-# Antig - Advanced Java HTTP Client
-
-**Antig** is a powerful, lightweight, and native Java Swing application designed to emulate the core functionality of Postman. It provides a robust environment for testing, documenting, and executing HTTP requests with a focus on performance and developer productivity.
+# Antigostman - Advanced Java HTTP Client
+    
+**Antigostman** is a powerful, lightweight, and native Java Swing application designed to emulate the core functionality of Postman. It provides a robust environment for testing, documenting, and executing HTTP requests with a focus on performance and developer productivity.
 
 ## 🚀 Features
 
@@ -69,8 +69,8 @@
 Clone the repository and build using Maven:
 
 ```bash
-git clone https://github.com/yourusername/antig.git
-cd antig
+git clone https://github.com/yourusername/antigostman.git
+cd antigostman
 mvn clean package
 ```
 
@@ -78,7 +78,7 @@ mvn clean package
 You can run the application using the generated JAR file:
 
 ```bash
-java -jar target/antig-1.2-SNAPSHOT.jar
+java -jar target/antigostman-1.2-SNAPSHOT.jar
 ```
 
 Alternatively, on Windows, a `run-app.bat` script is generated in the `target` folder.

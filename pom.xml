@@ -8,8 +8,8 @@
 		<version>3.2.0</version>
 		<relativePath /> <!-- lookup parent from repository -->
 	</parent>
-	<groupId>antig</groupId>
-	<artifactId>antig</artifactId>
+	<groupId>com.antigostman</groupId>
+	<artifactId>antigostman</artifactId>
 	<version>1.2-SNAPSHOT</version>
 	<properties>
 		<java.version>21</java.version>
@@ -92,7 +92,7 @@
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
 				<configuration>
-					<mainClass>com.example.antig.swing.PostmanApp</mainClass>
+					<mainClass>com.antigostman.PostmanApp</mainClass>
 				</configuration>
 			</plugin>
 
@@ -108,8 +108,8 @@
 							<target>
 								<echo file="${project.build.directory}/run-app.bat">
 @echo off
-title Antig App
-echo Starting Antig...
+title Antigostman App
+echo Starting Antigostman...
 java -jar ${project.build.finalName}.jar
 pause
 								</echo>

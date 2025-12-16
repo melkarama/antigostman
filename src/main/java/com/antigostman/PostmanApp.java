@@ -525,7 +525,7 @@ public class PostmanApp extends JFrame {
 
 		try {
 			// Save to temp file
-			File tempFile = File.createTempFile("antig_report_" + req.getId() + "_", ".pdf");
+			File tempFile = File.createTempFile("antigostman_report_" + req.getId() + "_", ".pdf");
 
 			com.antigostman.service.PdfReportService pdfService = new com.antigostman.service.PdfReportService();
 
@@ -569,7 +569,7 @@ public class PostmanApp extends JFrame {
 
 		try {
 			// Generate PDF to a temp file
-			File tempFile = File.createTempFile("antig_report_" + req.getId() + "_", ".pdf");
+			File tempFile = File.createTempFile("antigostman_report_" + req.getId() + "_", ".pdf");
 
 			com.antigostman.service.PdfReportService pdfService = new com.antigostman.service.PdfReportService();
 
@@ -1527,11 +1527,11 @@ public class PostmanApp extends JFrame {
 
 	private void updateTitle() {
 		if (currentProjectFile != null) {
-			setTitle(currentProjectFile.getAbsolutePath());
+			setTitle("Antigostman - " + currentProjectFile.getAbsolutePath());
 		} else if (rootCollection != null) {
-			setTitle("Swing Postman Clone - " + rootCollection.getName());
+			setTitle("Antigostman - " + rootCollection.getName());
 		} else {
-			setTitle("Swing Postman Clone");
+			setTitle("Antigostman");
 		}
 	}
 
