@@ -1,5 +1,28 @@
-/target/
-/.project
-/.settings/
-/.classpath
-bin
+# /target/
+target/
+*.class
+
+# Eclipse
+.project
+.classpath
+.settings/
+.factorypath
+bin/
+
+# IntelliJ IDEA
+.idea/
+*.iml
+
+# VS Code
+.vscode/
+
+# System
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Temp
+*.tmp
+*.bak
