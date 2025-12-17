@@ -86,6 +86,20 @@ Stay in the flow with these essential shortcuts.
 
 ---
 
+## ☕ Fuel the Development
+
+If Antigostman has saved you RAM, CPU cycles, or just made your API testing a little bit happier, consider fueling the next update! Your support keeps the code flowing and the coffee brewing. 
+
+Every contribution helps us remain **100% open-source and bloat-free**.
+
+<div align="center">
+  <a href="https://www.paypal.com/ncp/payment/45JPEGLFJQQSJ">
+    <img src="https://raw.githubusercontent.com/stefan-niedermann/paypal-donate-button/master/paypal-donate-button.png" alt="Donate with PayPal" width="220" />
+  </a>
+</div>
+
+---
+
 <div align="center">
 
 **Enjoying Antigostman?**  
