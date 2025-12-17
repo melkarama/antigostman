@@ -1,23 +1,11 @@
-<?xml version='1.0' encoding='UTF-8'?>
-<XmlCollection>
-  <type>collection</type>
+<XmlCollection type="collection">
   <id>demo-project-01</id>
   <name>Demo API Testing Project</name>
   <environment>
-    <entry>
-      <string>BASE_URL</string>
-      <string>https://jsonplaceholder.typicode.com</string>
-    </entry>
-    <entry>
-      <string>API_KEY</string>
-      <string>demo-api-key-12345</string>
-    </entry>
+    <entry></entry>
   </environment>
   <headers>
-    <entry>
-      <string>User-Agent</string>
-      <string>Antigostman/1.2</string>
-    </entry>
+    <entry></entry>
   </headers>
   <prescript>// Global prescript
 console.log("=== Project-level prescript ===");
@@ -27,34 +15,29 @@ console.log("=== Request completed ===");</postscript>
   <expanded>true</expanded>
   <selectedTabIndex>0</selectedTabIndex>
   <children>
-    <XmlFolder>
-      <type>folder</type>
+    <children type="folder">
       <id>folder-users</id>
       <name>👤 User Management</name>
       <environment>
-        <entry>
-          <string>USERS_ENDPOINT</string>
-          <string>{{BASE_URL}}/users</string>
-        </entry>
+        <entry></entry>
       </environment>
-      <headers/>
+      <headers>
+        <entry></entry>
+      </headers>
       <prescript></prescript>
       <postscript></postscript>
       <expanded>true</expanded>
       <selectedTabIndex>0</selectedTabIndex>
       <children>
-        <XmlRequest>
-          <type>request</type>
+        <children type="request">
           <id>req-get-users</id>
           <name>Get All Users</name>
           <environment/>
           <headers>
-            <entry>
-              <string>Accept</string>
-              <string>application/json</string>
-            </entry>
+            <entry></entry>
           </headers>
-          <prescript>console.log("Fetching all users...");</prescript>
+          <prescript>console.log("Fetching all users...");
+console.log("Timeout: " + TIMEOUT_MS + "ms");</prescript>
           <postscript>console.log("Response status: " + response.statusCode());</postscript>
           <expanded>false</expanded>
           <selectedTabIndex>0</selectedTabIndex>
@@ -62,27 +45,20 @@ console.log("=== Request completed ===");</postscript>
           <url>{{USERS_ENDPOINT}}</url>
           <body></body>
           <params></params>
-          <bodyType>TEXT</bodyType>
+          <bodyType>MULTIPART</bodyType>
           <executionTabIndex>0</executionTabIndex>
           <timeout>5000</timeout>
           <httpVersion>HTTP/1.1</httpVersion>
           <downloadContent>false</downloadContent>
-        </XmlRequest>
-        <XmlRequest>
-          <type>request</type>
+        </children>
+        <children type="request">
           <id>req-get-user-by-id</id>
           <name>Get User by ID</name>
           <environment>
-            <entry>
-              <string>USER_ID</string>
-              <string>1</string>
-            </entry>
+            <entry></entry>
           </environment>
           <headers>
-            <entry>
-              <string>Accept</string>
-              <string>application/json</string>
-            </entry>
+            <entry></entry>
           </headers>
           <prescript>console.log("Fetching user with ID: " + USER_ID);</prescript>
           <postscript></postscript>
@@ -97,19 +73,16 @@ console.log("=== Request completed ===");</postscript>
           <timeout>5000</timeout>
           <httpVersion>HTTP/1.1</httpVersion>
           <downloadContent>false</downloadContent>
-        </XmlRequest>
-        <XmlRequest>
-          <type>request</type>
+        </children>
+        <children type="request">
           <id>req-create-user</id>
           <name>Create New User</name>
           <environment/>
           <headers>
-            <entry>
-              <string>Content-Type</string>
-              <string>application/json</string>
-            </entry>
+            <entry></entry>
           </headers>
-          <prescript>console.log("Creating new user...");</prescript>
+          <prescript>console.log("Creating new user...");
+console.log("Using API Key: " + API_KEY);</prescript>
           <postscript>console.log("User created with status: " + response.statusCode());</postscript>
           <expanded>false</expanded>
           <selectedTabIndex>0</selectedTabIndex>
@@ -120,7 +93,11 @@ console.log("=== Request completed ===");</postscript>
   "username": "johndoe",
   "email": "john.doe@example.com",
   "phone": "+1-555-0100",
-  "website": "johndoe.com"
+  "website": "johndoe.com",
+  "company": {
+    "name": "Acme Corp",
+    "catchPhrase": "Innovation at its best"
+  }
 }</body>
           <params></params>
           <bodyType>JSON</bodyType>
@@ -128,22 +105,15 @@ console.log("=== Request completed ===");</postscript>
           <timeout>5000</timeout>
           <httpVersion>HTTP/1.1</httpVersion>
           <downloadContent>false</downloadContent>
-        </XmlRequest>
-        <XmlRequest>
-          <type>request</type>
+        </children>
+        <children type="request">
           <id>req-update-user</id>
           <name>Update User</name>
           <environment>
-            <entry>
-              <string>USER_ID</string>
-              <string>1</string>
-            </entry>
+            <entry></entry>
           </environment>
           <headers>
-            <entry>
-              <string>Content-Type</string>
-              <string>application/json</string>
-            </entry>
+            <entry></entry>
           </headers>
           <prescript></prescript>
           <postscript></postscript>
@@ -161,16 +131,12 @@ console.log("=== Request completed ===");</postscript>
           <timeout>5000</timeout>
           <httpVersion>HTTP/1.1</httpVersion>
           <downloadContent>false</downloadContent>
-        </XmlRequest>
-        <XmlRequest>
-          <type>request</type>
+        </children>
+        <children type="request">
           <id>req-delete-user</id>
           <name>Delete User</name>
           <environment>
-            <entry>
-              <string>USER_ID</string>
-              <string>10</string>
-            </entry>
+            <entry></entry>
           </environment>
           <headers/>
           <prescript>console.log("Deleting user ID: " + USER_ID);</prescript>
@@ -186,18 +152,14 @@ console.log("=== Request completed ===");</postscript>
           <timeout>5000</timeout>
           <httpVersion>HTTP/1.1</httpVersion>
           <downloadContent>false</downloadContent>
-        </XmlRequest>
+        </children>
       </children>
-    </XmlFolder>
-    <XmlFolder>
-      <type>folder</type>
+    </children>
+    <children type="folder">
       <id>folder-posts</id>
-      <name>📝 Posts & Comments</name>
+      <name>📝 Posts and Comments</name>
       <environment>
-        <entry>
-          <string>POSTS_ENDPOINT</string>
-          <string>{{BASE_URL}}/posts</string>
-        </entry>
+        <entry></entry>
       </environment>
       <headers/>
       <prescript></prescript>
@@ -205,8 +167,7 @@ console.log("=== Request completed ===");</postscript>
       <expanded>true</expanded>
       <selectedTabIndex>0</selectedTabIndex>
       <children>
-        <XmlRequest>
-          <type>request</type>
+        <children type="request">
           <id>req-get-posts</id>
           <name>Get All Posts</name>
           <environment/>
@@ -214,7 +175,7 @@ console.log("=== Request completed ===");</postscript>
           <prescript></prescript>
           <postscript></postscript>
           <expanded>false</expanded>
-          <selectedTabIndex>0</selectedTabIndex>
+          <selectedTabIndex>1</selectedTabIndex>
           <method>GET</method>
           <url>{{POSTS_ENDPOINT}}</url>
           <body></body>
@@ -224,9 +185,8 @@ console.log("=== Request completed ===");</postscript>
           <timeout>5000</timeout>
           <httpVersion>HTTP/2</httpVersion>
           <downloadContent>false</downloadContent>
-        </XmlRequest>
-        <XmlRequest>
-          <type>request</type>
+        </children>
+        <children type="request">
           <id>req-search-posts</id>
           <name>Search Posts (Query Params)</name>
           <environment/>
@@ -245,17 +205,13 @@ _limit=5</body>
           <timeout>5000</timeout>
           <httpVersion>HTTP/1.1</httpVersion>
           <downloadContent>false</downloadContent>
-        </XmlRequest>
-        <XmlRequest>
-          <type>request</type>
+        </children>
+        <children type="request">
           <id>req-create-post</id>
           <name>Create Post (XML)</name>
           <environment/>
           <headers>
-            <entry>
-              <string>Content-Type</string>
-              <string>application/xml</string>
-            </entry>
+            <entry></entry>
           </headers>
           <prescript></prescript>
           <postscript></postscript>
@@ -263,34 +219,27 @@ _limit=5</body>
           <selectedTabIndex>0</selectedTabIndex>
           <method>POST</method>
           <url>{{POSTS_ENDPOINT}}</url>
-          <body>&lt;?xml version="1.0" encoding="UTF-8"?&gt;
-&lt;post&gt;
-  &lt;title&gt;New Amazing Post&lt;/title&gt;
-  &lt;body&gt;This is the content of my post&lt;/body&gt;
-  &lt;userId&gt;1&lt;/userId&gt;
-&lt;/post&gt;</body>
+          <body>&lt;?xml version="1.0" encoding="UTF-8"?>
+&lt;post>
+  &lt;title>New Amazing Post&lt;/title>
+  &lt;body>This is the content of my post&lt;/body>
+  &lt;userId>1&lt;/userId>
+&lt;/post></body>
           <params></params>
           <bodyType>XML</bodyType>
           <executionTabIndex>0</executionTabIndex>
           <timeout>5000</timeout>
           <httpVersion>HTTP/1.1</httpVersion>
           <downloadContent>false</downloadContent>
-        </XmlRequest>
-        <XmlRequest>
-          <type>request</type>
+        </children>
+        <children type="request">
           <id>req-patch-post</id>
           <name>Partial Update Post</name>
           <environment>
-            <entry>
-              <string>POST_ID</string>
-              <string>1</string>
-            </entry>
+            <entry></entry>
           </environment>
           <headers>
-            <entry>
-              <string>Content-Type</string>
-              <string>application/json</string>
-            </entry>
+            <entry></entry>
           </headers>
           <prescript></prescript>
           <postscript></postscript>
@@ -307,11 +256,10 @@ _limit=5</body>
           <timeout>5000</timeout>
           <httpVersion>HTTP/1.1</httpVersion>
           <downloadContent>false</downloadContent>
-        </XmlRequest>
+        </children>
       </children>
-    </XmlFolder>
-    <XmlFolder>
-      <type>folder</type>
+    </children>
+    <children type="folder">
       <id>folder-advanced</id>
       <name>🚀 Advanced Features</name>
       <environment/>
@@ -321,8 +269,7 @@ _limit=5</body>
       <expanded>true</expanded>
       <selectedTabIndex>0</selectedTabIndex>
       <children>
-        <XmlRequest>
-          <type>request</type>
+        <children type="request">
           <id>req-form-upload</id>
           <name>Form Encoded Request</name>
           <environment/>
@@ -335,16 +282,16 @@ _limit=5</body>
           <url>https://httpbin.org/post</url>
           <body>username=testuser
 password=secret123
-remember=true</body>
+remember=true
+token={{AUTH_TOKEN}}</body>
           <params></params>
           <bodyType>FORM ENCODED</bodyType>
           <executionTabIndex>0</executionTabIndex>
           <timeout>10000</timeout>
           <httpVersion>HTTP/1.1</httpVersion>
           <downloadContent>false</downloadContent>
-        </XmlRequest>
-        <XmlRequest>
-          <type>request</type>
+        </children>
+        <children type="request">
           <id>req-multipart</id>
           <name>Multipart File Upload</name>
           <environment/>
@@ -364,9 +311,8 @@ avatar=file:/tmp/sample-avatar.png</body>
           <timeout>30000</timeout>
           <httpVersion>HTTP/1.1</httpVersion>
           <downloadContent>false</downloadContent>
-        </XmlRequest>
-        <XmlRequest>
-          <type>request</type>
+        </children>
+        <children type="request">
           <id>req-download-pdf</id>
           <name>Download PDF (Binary)</name>
           <environment/>
@@ -384,9 +330,8 @@ avatar=file:/tmp/sample-avatar.png</body>
           <timeout>15000</timeout>
           <httpVersion>HTTP/1.1</httpVersion>
           <downloadContent>true</downloadContent>
-        </XmlRequest>
-        <XmlRequest>
-          <type>request</type>
+        </children>
+        <children type="request">
           <id>req-http2-demo</id>
           <name>HTTP/2 Request</name>
           <environment/>
@@ -404,21 +349,14 @@ avatar=file:/tmp/sample-avatar.png</body>
           <timeout>10000</timeout>
           <httpVersion>HTTP/2</httpVersion>
           <downloadContent>false</downloadContent>
-        </XmlRequest>
+        </children>
       </children>
-    </XmlFolder>
+    </children>
   </children>
-  <lastSelectedNodeId>req-get-users</lastSelectedNodeId>
-  <globalVariables>
-    <entry>
-      <string>TIMESTAMP</string>
-      <string>2025-12-17T22:40:00</string>
-    </entry>
-    <entry>
-      <string>APP_VERSION</string>
-      <string>1.2</string>
-    </entry>
-  </globalVariables>
+  <lastSelectedNodeId>req-search-posts</lastSelectedNodeId>
   <emailReportTo>team@example.com</emailReportTo>
   <emailReportCc>manager@example.com</emailReportCc>
+  <globalVariables>
+    <entry></entry>
+  </globalVariables>
 </XmlCollection>

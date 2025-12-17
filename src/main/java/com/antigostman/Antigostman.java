@@ -178,6 +178,16 @@ public class Antigostman extends JFrame {
 		updateRecentProjectsMenu(recentMenu);
 		fileMenu.add(recentMenu);
 
+		fileMenu.addSeparator();
+
+		// Exit menu item
+		JMenuItem exitItem = new JMenuItem("Exit");
+		exitItem.addActionListener(e -> {
+			saveAllProjects();
+			System.exit(0);
+		});
+		fileMenu.add(exitItem);
+
 		menuBar.add(fileMenu);
 
 		// View menu for theme switching
@@ -202,6 +212,14 @@ public class Antigostman extends JFrame {
 		JMenuItem openLogItem = new JMenuItem("Open Log File");
 		openLogItem.addActionListener(e -> openLogFile());
 		viewMenu.add(openLogItem);
+
+		// Help menu
+		JMenu helpMenu = new JMenu("Help");
+		JMenuItem aboutItem = new JMenuItem("About Antigostman");
+		aboutItem.addActionListener(e -> openAboutPage());
+		helpMenu.add(aboutItem);
+
+		menuBar.add(helpMenu);
 
 		setJMenuBar(menuBar);
 	}
@@ -2263,6 +2281,26 @@ public class Antigostman extends JFrame {
 		} catch (Exception e) {
 			e.printStackTrace();
 			JOptionPane.showMessageDialog(this, "Failed to open log file: " + e.getMessage());
+		}
+	}
+
+	private void openAboutPage() {
+		try {
+			String githubUrl = "https://github.com/melkarama/antigostman";
+			if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
+				Desktop.getDesktop().browse(new URI(githubUrl));
+			} else {
+				JOptionPane.showMessageDialog(this, 
+					"GitHub: " + githubUrl + "\n\nPlease open this URL in your browser.",
+					"About Antigostman",
+					JOptionPane.INFORMATION_MESSAGE);
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+			JOptionPane.showMessageDialog(this, 
+				"Failed to open browser: " + e.getMessage() + "\n\nVisit: https://github.com/melkarama/antigostman",
+				"About Antigostman",
+				JOptionPane.ERROR_MESSAGE);
 		}
 	}
 
