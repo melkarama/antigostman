@@ -107,7 +107,7 @@ Every contribution helps us remain **100% open-source and bloat-free**.
 **We are building Antigostman for YOU.**  
 Your feedback is the fuel that powers our engine (along with the coffee ☕).
 
-**Found a bug?** 🐛 [Report it!](../../issues) &nbsp;&nbsp;•&nbsp;&nbsp; **Have an idea?** 💡 [Share it!](../../discussions)
+**Found a bug?** 🐛 [Report it!](issues) &nbsp;&nbsp;•&nbsp;&nbsp; **Have an idea?** 💡 [Share it!](discussions)
 
 If this tool sparked joy (or saved your RAM), please **Star this repository** ⭐.  
 *It helps more developers discover the power of native apps.*

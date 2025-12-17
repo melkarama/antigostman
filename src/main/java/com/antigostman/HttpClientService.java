@@ -26,18 +26,33 @@ public class HttpClientService {
 
 	public HttpResponse<String> sendRequest(String url, String method, String body,
 			java.util.Map<String, String> headers, long timeoutMillis, String httpVersion) throws Exception {
-		HttpRequest builder = buildRequest(url, method, body, headers, timeoutMillis, httpVersion);
+		HttpRequest.BodyPublisher publisher = HttpRequest.BodyPublishers.ofString(body);
+		// Let buildRequest handle the defaults, but we need to pass the publisher
+		return sendRequest(url, method, publisher, headers, timeoutMillis, httpVersion, null);
+	}
+
+	public HttpResponse<String> sendRequest(String url, String method, HttpRequest.BodyPublisher bodyPublisher,
+			java.util.Map<String, String> headers, long timeoutMillis, String httpVersion, String contentType)
+			throws Exception {
+		HttpRequest builder = buildRequest(url, method, bodyPublisher, headers, timeoutMillis, httpVersion, contentType);
 		return httpClient.send(builder, HttpResponse.BodyHandlers.ofString());
 	}
 
 	public HttpResponse<byte[]> sendRequestBytes(String url, String method, String body,
 			java.util.Map<String, String> headers, long timeoutMillis, String httpVersion) throws Exception {
-		HttpRequest builder = buildRequest(url, method, body, headers, timeoutMillis, httpVersion);
+		HttpRequest.BodyPublisher publisher = HttpRequest.BodyPublishers.ofString(body);
+		return sendRequestBytes(url, method, publisher, headers, timeoutMillis, httpVersion, null);
+	}
+
+	public HttpResponse<byte[]> sendRequestBytes(String url, String method, HttpRequest.BodyPublisher bodyPublisher,
+			java.util.Map<String, String> headers, long timeoutMillis, String httpVersion, String contentType)
+			throws Exception {
+		HttpRequest builder = buildRequest(url, method, bodyPublisher, headers, timeoutMillis, httpVersion, contentType);
 		return httpClient.send(builder, HttpResponse.BodyHandlers.ofByteArray());
 	}
 
-	private HttpRequest buildRequest(String url, String method, String body,
-			java.util.Map<String, String> headers, long timeoutMillis, String httpVersion) {
+	private HttpRequest buildRequest(String url, String method, HttpRequest.BodyPublisher bodyPublisher,
+			java.util.Map<String, String> headers, long timeoutMillis, String httpVersion, String contentType) {
 
 		HttpRequest.Builder builder = HttpRequest.newBuilder().uri(URI.create(url))
 				.timeout(Duration.ofMillis(timeoutMillis));
@@ -53,6 +68,12 @@ public class HttpClientService {
 			headers.forEach(builder::header);
 		}
 
+		// Explicit Content-Type if provided (overrides header map if conflict, or adds
+		// if missing)
+		if (contentType != null) {
+			builder.setHeader("Content-Type", contentType);
+		}
+
 		// Default to GET if method is null
 		String effectiveMethod = (method != null) ? method : "GET";
 
@@ -61,14 +82,14 @@ public class HttpClientService {
 			builder.GET();
 			break;
 		case "POST":
-			builder.POST(HttpRequest.BodyPublishers.ofString(body));
-			if (!headers.containsKey("Content-Type")) {
+			builder.POST(bodyPublisher);
+			if (contentType == null && headers != null && !headers.containsKey("Content-Type")) {
 				builder.header("Content-Type", "application/json");
 			}
 			break;
 		case "PUT":
-			builder.PUT(HttpRequest.BodyPublishers.ofString(body));
-			if (!headers.containsKey("Content-Type")) {
+			builder.PUT(bodyPublisher);
+			if (contentType == null && headers != null && !headers.containsKey("Content-Type")) {
 				builder.header("Content-Type", "application/json");
 			}
 			break;
@@ -76,8 +97,8 @@ public class HttpClientService {
 			builder.DELETE();
 			break;
 		case "PATCH":
-			builder.method("PATCH", HttpRequest.BodyPublishers.ofString(body));
-			if (!headers.containsKey("Content-Type")) {
+			builder.method("PATCH", bodyPublisher);
+			if (contentType == null && headers != null && !headers.containsKey("Content-Type")) {
 				builder.header("Content-Type", "application/json");
 			}
 			break;

@@ -372,7 +372,7 @@ public class Antigostman extends JFrame {
 			}
 		});
 
-		String[] bodyTypes = { "TEXT", "JSON", "XML", "FORM ENCODED" };
+		String[] bodyTypes = { "TEXT", "JSON", "XML", "FORM ENCODED", "MULTIPART" };
 		bodyTypeComboBox = new JComboBox<>(bodyTypes);
 		bodyTypeComboBox.setPreferredSize(new Dimension(120, 30));
 		bodyTypeComboBox.addActionListener(e -> {
@@ -1105,6 +1105,8 @@ public class Antigostman extends JFrame {
 			String bodyToSend = req.getBody();
 			boolean isGet = "GET".equalsIgnoreCase(req.getMethod());
 			String queryParams = null;
+			HttpRequest.BodyPublisher multipartPublisher = null;
+			String multipartContentType = null;
 
 			// Treat body as params (Form Encoded) if explicitly selected OR if it's a GET request with content
 			if ("FORM ENCODED".equalsIgnoreCase(bodyType) || (isGet && StringUtils.isNotBlank(bodyToSend))) {
@@ -1140,6 +1142,73 @@ public class Antigostman extends JFrame {
 					bodyToSend = encodedBody;
 					headers.put("Content-Type", "application/x-www-form-urlencoded");
 				}
+			} else if ("MULTIPART".equalsIgnoreCase(bodyType)) {
+				// Parse body for multipart: key=value or key=file:/path/to/file
+				try {
+					bodyToSend = parse(bodyToSend, variables);
+				} catch (Exception e) {
+					log.error("Error parsing variables in multipart body", e);
+				}
+
+				Map<String, String> params = parseProperties(bodyToSend);
+				String boundary = "----AntigostmanBoundary" + System.currentTimeMillis();
+				multipartContentType = "multipart/form-data; boundary=" + boundary;
+
+				java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+				java.io.PrintWriter writer = new java.io.PrintWriter(
+						new java.io.OutputStreamWriter(baos, StandardCharsets.UTF_8), true);
+
+				for (Map.Entry<String, String> entry : params.entrySet()) {
+					String key = entry.getKey();
+					String value = entry.getValue();
+
+					if (value != null && value.startsWith("file:")) {
+						// File upload
+						String filePath = value.substring(5); // Remove "file:" prefix
+						java.io.File file = new java.io.File(filePath);
+
+						if (file.exists() && file.isFile()) {
+							writer.append("--").append(boundary).append("\r\n");
+							writer.append("Content-Disposition: form-data; name=\"").append(key).append("\"; filename=\"")
+									.append(file.getName()).append("\"\r\n");
+							writer.append("Content-Type: application/octet-stream\r\n");
+							writer.append("\r\n");
+							writer.flush();
+
+							try {
+								byte[] fileBytes = java.nio.file.Files.readAllBytes(file.toPath());
+								baos.write(fileBytes);
+							} catch (Exception e) {
+								log.error("Error reading file: " + filePath, e);
+							}
+
+							writer.append("\r\n");
+							writer.flush();
+						} else {
+							log.warn("File not found or not a file: " + filePath);
+						}
+					} else {
+						// Regular text field
+						writer.append("--").append(boundary).append("\r\n");
+						writer.append("Content-Disposition: form-data; name=\"").append(key).append("\"\r\n");
+						writer.append("\r\n");
+						writer.append(value != null ? value : "");
+						writer.append("\r\n");
+						writer.flush();
+					}
+				}
+
+				// End boundary
+				writer.append("--").append(boundary).append("--").append("\r\n");
+				writer.flush();
+				writer.close();
+
+				byte[] multipartBytes = baos.toByteArray();
+				multipartPublisher = HttpRequest.BodyPublishers.ofByteArray(multipartBytes);
+
+				// For display/logging (show summary)
+				bodyToSend = "Multipart upload with " + params.size() + " field(s)";
+
 			} else if ("JSON".equalsIgnoreCase(bodyType)) {
 				headers.put("Content-Type", "application/json");
 			} else if ("XML".equalsIgnoreCase(bodyType)) {
@@ -1149,6 +1218,8 @@ public class Antigostman extends JFrame {
 			}
 
 			String finalQueryParams = queryParams;
+			HttpRequest.BodyPublisher finalMultipartPublisher = multipartPublisher;
+			String finalMultipartContentType = multipartContentType;
 
 			// 6. Send Request
 			// nodeConfigPanel.selectExecutionTab();
@@ -1335,8 +1406,14 @@ public class Antigostman extends JFrame {
 						};
 
 					} else {
-						return httpClientService.sendRequest(url, req.getMethod(), body, finalHeaders, req.getTimeout(),
-								req.getHttpVersion());
+						// Use multipart if available, otherwise regular request
+						if (finalMultipartPublisher != null) {
+							return httpClientService.sendRequest(url, req.getMethod(), finalMultipartPublisher,
+									finalHeaders, req.getTimeout(), req.getHttpVersion(), finalMultipartContentType);
+						} else {
+							return httpClientService.sendRequest(url, req.getMethod(), body, finalHeaders,
+									req.getTimeout(), req.getHttpVersion());
+						}
 					}
 				}
 
