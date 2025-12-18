@@ -13,7 +13,7 @@ console.log("Base URL: " + BASE_URL);</prescript>
   <postscript>// Global postscript
 console.log("=== Request completed ===");</postscript>
   <expanded>true</expanded>
-  <selectedTabIndex>0</selectedTabIndex>
+  <selectedTabIndex>1</selectedTabIndex>
   <children>
     <children type="folder">
       <id>folder-users</id>
@@ -353,7 +353,7 @@ avatar=file:/tmp/sample-avatar.png</body>
       </children>
     </children>
   </children>
-  <lastSelectedNodeId>req-search-posts</lastSelectedNodeId>
+  <lastSelectedNodeId>folder-users</lastSelectedNodeId>
   <emailReportTo>team@example.com</emailReportTo>
   <emailReportCc>manager@example.com</emailReportCc>
   <globalVariables>

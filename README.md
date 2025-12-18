@@ -35,7 +35,7 @@ We believe tools should respect your resources. Antigostman is built with **pure
 
 ### 🧠 **Advanced Automation**
 *   **Scripting Engine**: Write `JavaScript` pre-request and test scripts securely.
-*   **Dynamic Variables**: Use `{{double_braces}}` to inject environment variables anywhere.
+*   **Dynamic Content**: Powered by **Apache Velocity** for advanced variablisation. Use well-formed expressions like `$!{auth_token}` or `{{base_url}}` to inject dynamic data anywhere in your requests.
 *   **Console Debugging**: A built-in terminal to inspect your logic in real-time.
 
 ### 📊 **Beautiful Reporting**
@@ -46,6 +46,7 @@ We believe tools should respect your resources. Antigostman is built with **pure
 *   **Theme Aware**: Automatically adapts to **Light** or **Dark** environments.
 *   **Syntax Highlighting**: Rich coloring for JSON, XML, properties, and more.
 *   **Project Management**: Save your workspaces as portable XML files.
+*   **Postman Migration**: Seamlessly import existing **Postman Collections (v2 & v2.1)** with full support for requests, folders, and scripts.
 
 ---
 
@@ -95,7 +96,7 @@ We're constantly evolving. Here's what's coming next:
 - [ ] **Request Chaining**: Automatically pass data between sequential requests
 - [ ] **GraphQL Support**: Native GraphQL query builder and explorer
 - [ ] **Multipart Upload Stabilization**: Enhanced reliability and error handling for multipart file uploads
-- [ ] **Postman Import**: Convert and import Postman project files to Antigostman format
+- [ ] **Utility Enrichment**: Expand built-in helper functions and tools with frequently used developer utilities (encoding, date formatting, UUID generation, etc.)
 
 ---
 

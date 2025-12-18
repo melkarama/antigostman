@@ -65,6 +65,8 @@ import com.antigostman.model.PostmanCollection;
 import com.antigostman.model.PostmanFolder;
 import com.antigostman.model.PostmanNode;
 import com.antigostman.model.PostmanRequest;
+import com.antigostman.model.postman.PostmanCollectionV2;
+import com.antigostman.service.PostmanImportService;
 import com.antigostman.service.ProjectService;
 import com.antigostman.service.RecentProjectsManager;
 import com.antigostman.ui.NodeConfigPanel;
@@ -105,6 +107,7 @@ public class Antigostman extends JFrame {
 	private JCheckBox pdfOpenCheckbox; // New Checkbox
 	private JCheckBox dlContentCheckbox; // New DL Content Checkbox
 	private JPanel requestToolbar;
+	private JMenu recentProjectsMenu;
 
 	private PostmanNode currentNode;
 	private boolean isLoadingNode = false; // Flag to prevent listeners from firing during load
@@ -168,15 +171,19 @@ public class Antigostman extends JFrame {
 		JMenuItem newProjectItem = new JMenuItem("New Project");
 		newProjectItem.addActionListener(e -> newProject());
 
+		JMenuItem importPostmanItem = new JMenuItem("Import Postman Collection");
+		importPostmanItem.addActionListener(e -> importPostmanCollection());
+
 		fileMenu.add(newProjectItem);
 		fileMenu.add(saveItem);
 		fileMenu.add(loadItem);
+		fileMenu.add(importPostmanItem);
 		fileMenu.addSeparator();
 
 		// Recent Projects submenu
-		JMenu recentMenu = new JMenu("Recent Projects");
-		updateRecentProjectsMenu(recentMenu);
-		fileMenu.add(recentMenu);
+		recentProjectsMenu = new JMenu("Recent Projects");
+		updateRecentProjectsMenu(recentProjectsMenu);
+		fileMenu.add(recentProjectsMenu);
 
 		fileMenu.addSeparator();
 
@@ -1706,9 +1713,7 @@ public class Antigostman extends JFrame {
 
 			updateOpenProjectsList();
 			recentProjectsManager.addRecentProject(currentProjectFile);
-			updateRecentProjectsMenu((JMenu) getJMenuBar().getMenu(0).getMenuComponent(4));
-			recentProjectsManager.addRecentProject(currentProjectFile);
-			updateRecentProjectsMenu((JMenu) getJMenuBar().getMenu(0).getMenuComponent(4));
+			updateRecentProjectsMenu(recentProjectsMenu);
 			// Update title bar with saved file path
 			updateTitle();
 
@@ -1736,7 +1741,7 @@ public class Antigostman extends JFrame {
 			nodeConfigPanel.loadNode(null);
 
 			recentProjectsManager.addRecentProject(file);
-			updateRecentProjectsMenu((JMenu) getJMenuBar().getMenu(0).getMenuComponent(4));
+			updateRecentProjectsMenu(recentProjectsMenu);
 
 			updateOpenProjectsList();
 
@@ -1894,6 +1899,64 @@ public class Antigostman extends JFrame {
 			nodeConfigPanel.loadNode(null);
 			updateTitle();
 			treeModel.reload();
+		}
+	}
+
+	/**
+	 * Import a Postman Collection V2.x JSON file and convert it to Antigostman format
+	 */
+	private void importPostmanCollection() {
+		JFileChooser fileChooser = new JFileChooser();
+		fileChooser.setDialogTitle("Import Postman Collection");
+		
+		// Add file filter for JSON files
+		javax.swing.filechooser.FileNameExtensionFilter filter = 
+			new javax.swing.filechooser.FileNameExtensionFilter("Postman Collection (*.json)", "json");
+		fileChooser.setFileFilter(filter);
+		
+		if (fileChooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
+			File file = fileChooser.getSelectedFile();
+			
+			try {
+				// Parse the Postman collection JSON file
+				PostmanCollectionV2 postmanCollection = objectMapper.readValue(file, PostmanCollectionV2.class);
+				
+				// Convert to Antigostman format
+				PostmanImportService importService = new PostmanImportService();
+				PostmanCollection antigostmanCollection = importService.convertToAntigostman(postmanCollection);
+				
+				// Load it into the application
+				rootCollection = antigostmanCollection;
+				treeModel.setRoot(rootCollection);
+				currentProjectFile = null; // Not saved yet
+				currentNode = null;
+				nodeConfigPanel.loadNode(null);
+				
+				// Expand all nodes to show the imported structure
+				expandAllNodes(projectTree, new TreePath(rootCollection.getPath()));
+				
+				// Scroll to collection root
+				TreePath path = new TreePath(rootCollection.getPath());
+				projectTree.scrollPathToVisible(path);
+				
+				updateTitle();
+				treeModel.reload();
+				
+				// Show success message
+				JOptionPane.showMessageDialog(this, 
+					"Successfully imported Postman collection: " + antigostmanCollection.getName() + 
+					"\n\nPlease save the project to persist the changes.",
+					"Import Successful", 
+					JOptionPane.INFORMATION_MESSAGE);
+				
+			} catch (Exception e) {
+				e.printStackTrace();
+				JOptionPane.showMessageDialog(this, 
+					"Error importing Postman collection:\n" + e.getMessage() + 
+					"\n\nMake sure the file is a valid Postman Collection v2.x JSON file.",
+					"Import Error", 
+					JOptionPane.ERROR_MESSAGE);
+			}
 		}
 	}
 

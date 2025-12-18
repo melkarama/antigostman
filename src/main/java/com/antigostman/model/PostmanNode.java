@@ -50,6 +50,14 @@ public abstract class PostmanNode extends DefaultMutableTreeNode {
 		setUserObject(name);
 	}
 
+	public String getDescription() {
+		return description;
+	}
+
+	public void setDescription(String description) {
+		this.description = description;
+	}
+
 	public Map<String, String> getEnvironment() {
 		return environment;
 	}
