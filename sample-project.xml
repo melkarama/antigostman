@@ -85,7 +85,7 @@ console.log("Timeout: " + TIMEOUT_MS + "ms");</prescript>
 console.log("Using API Key: " + API_KEY);</prescript>
           <postscript>console.log("User created with status: " + response.statusCode());</postscript>
           <expanded>false</expanded>
-          <selectedTabIndex>0</selectedTabIndex>
+          <selectedTabIndex>2</selectedTabIndex>
           <method>POST</method>
           <url>{{USERS_ENDPOINT}}</url>
           <body>{
@@ -353,7 +353,7 @@ avatar=file:/tmp/sample-avatar.png</body>
       </children>
     </children>
   </children>
-  <lastSelectedNodeId>req-get-user-by-id</lastSelectedNodeId>
+  <lastSelectedNodeId>req-create-user</lastSelectedNodeId>
   <emailReportTo>team@example.com</emailReportTo>
   <emailReportCc>manager@example.com</emailReportCc>
   <globalVariables>
