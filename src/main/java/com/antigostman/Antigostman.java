@@ -20,9 +20,11 @@ import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
@@ -280,9 +282,14 @@ public class Antigostman extends JFrame {
 			@Override
 			public void mousePressed(MouseEvent e) {
 				if (SwingUtilities.isRightMouseButton(e)) {
-					int row = projectTree.getClosestRowForLocation(e.getX(), e.getY());
-					projectTree.setSelectionRow(row);
-					showContextMenu(e.getX(), e.getY());
+					TreePath path = projectTree.getPathForLocation(e.getX(), e.getY());
+					if (path != null) {
+						int row = projectTree.getRowForPath(path);
+						if (!projectTree.isRowSelected(row)) {
+							projectTree.setSelectionRow(row);
+						}
+						showContextMenu(e.getX(), e.getY());
+					}
 				}
 			}
 		});
@@ -294,12 +301,9 @@ public class Antigostman extends JFrame {
 				if (e.getKeyCode() == java.awt.event.KeyEvent.VK_F2) {
 					renameSelectedNode();
 				} else if (e.getKeyCode() == java.awt.event.KeyEvent.VK_F3) {
-					PostmanNode node = (PostmanNode) projectTree.getLastSelectedPathComponent();
-					if (node != null) {
-						cloneNode(node);
-					}
+					cloneSelectedNodes();
 				} else if (e.getKeyCode() == java.awt.event.KeyEvent.VK_DELETE) {
-					deleteSelectedNode();
+					deleteSelectedNodes();
 				}
 			}
 		});
@@ -443,8 +447,9 @@ public class Antigostman extends JFrame {
 			}
 		});
 		// Bind Ctrl+Enter to send request
-		urlField.getInputMap().put(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_ENTER,
-				java.awt.event.InputEvent.CTRL_DOWN_MASK), "sendRequest");
+		urlField.getInputMap().put(
+				javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_ENTER, java.awt.event.InputEvent.CTRL_DOWN_MASK),
+				"sendRequest");
 		urlField.getActionMap().put("sendRequest", new javax.swing.AbstractAction() {
 			@Override
 			public void actionPerformed(java.awt.event.ActionEvent e) {
@@ -637,8 +642,8 @@ public class Antigostman extends JFrame {
 			if (tempFile.exists()) {
 				String osName = System.getProperty("os.name").toLowerCase();
 				String subject = "Rapport de test - " + projectName + " - " + req.getName();
-				String body = "Bonjour,\n\nJe vous prie de trouver ci-joint le rapport de test.\n\nProjet : "
-						+ projectName + "\nTest : " + req.getName() + "\n\nCordialement.";
+				String body = "Bonjour,\n\nJe vous prie de trouver ci-joint le rapport de test.\n\nProjet : " + projectName
+						+ "\nTest : " + req.getName() + "\n\nCordialement.";
 
 				// Get email recipients from settings
 				String emailTo = "";
@@ -654,9 +659,8 @@ public class Antigostman extends JFrame {
 				if (osName.contains("win")) {
 					try {
 						String powershellScript = String.format(
-								"$outlook = New-Object -ComObject Outlook.Application;"
-										+ "$mail = $outlook.CreateItem(0);" + "$mail.Subject = '%s';"
-										+ "$mail.Body = '%s';" + "$mail.To = '%s';" + "$mail.CC = '%s';"
+								"$outlook = New-Object -ComObject Outlook.Application;" + "$mail = $outlook.CreateItem(0);"
+										+ "$mail.Subject = '%s';" + "$mail.Body = '%s';" + "$mail.To = '%s';" + "$mail.CC = '%s';"
 										+ "$mail.Attachments.Add('%s');" + "$mail.Display()",
 								subject.replace("'", "''"), body.replace("'", "''"), emailTo.replace("'", "''"),
 								emailCc.replace("'", "''"), tempFile.getAbsolutePath().replace("\\", "\\\\"));
@@ -696,8 +700,8 @@ public class Antigostman extends JFrame {
 					java.awt.Desktop desktop = java.awt.Desktop.getDesktop();
 
 					// Create mailto URI
-					String mailto = String.format("mailto:?subject=%s&body=%s",
-							java.net.URLEncoder.encode(subject, "UTF-8"), java.net.URLEncoder.encode(body, "UTF-8"));
+					String mailto = String.format("mailto:?subject=%s&body=%s", java.net.URLEncoder.encode(subject, "UTF-8"),
+							java.net.URLEncoder.encode(body, "UTF-8"));
 
 					desktop.browse(new java.net.URI(mailto));
 
@@ -821,37 +825,41 @@ public class Antigostman extends JFrame {
 	}
 
 	private void showContextMenu(int x, int y) {
-		PostmanNode node = (PostmanNode) projectTree.getLastSelectedPathComponent();
-		if (node == null) {
+		TreePath[] paths = projectTree.getSelectionPaths();
+		if (paths == null || paths.length == 0) {
 			return;
 		}
 
+		PostmanNode lastNode = (PostmanNode) paths[paths.length - 1].getLastPathComponent();
 		JPopupMenu menu = new JPopupMenu();
 
-		if (node instanceof PostmanCollection || node instanceof PostmanFolder) {
+		// Add sibling options only if exactly one node is selected and it's a
+		// folder/collection
+		if (paths.length == 1 && (lastNode instanceof PostmanCollection || lastNode instanceof PostmanFolder)) {
 			JMenuItem addFolder = new JMenuItem("Add Folder");
-			addFolder.addActionListener(e -> promptAndAddChild(node, "Folder"));
+			addFolder.addActionListener(e -> promptAndAddChild(lastNode, "Folder"));
 			menu.add(addFolder);
 
 			JMenuItem addRequest = new JMenuItem("Add Request");
-			addRequest.addActionListener(e -> promptAndAddChild(node, "Request"));
+			addRequest.addActionListener(e -> promptAndAddChild(lastNode, "Request"));
 			menu.add(addRequest);
+			menu.addSeparator();
 		}
 
-		JMenuItem rename = new JMenuItem("Rename");
-		rename.addActionListener(e -> renameSelectedNode());
-		menu.add(rename);
+		if (paths.length == 1) {
+			JMenuItem rename = new JMenuItem("Rename");
+			rename.addActionListener(e -> renameSelectedNode());
+			menu.add(rename);
+		}
 
-		JMenuItem delete = new JMenuItem("Delete");
-		delete.addActionListener(e -> deleteSelectedNode());
+		String deleteLabel = paths.length > 1 ? "Delete Selected (" + paths.length + ")" : "Delete";
+		JMenuItem delete = new JMenuItem(deleteLabel);
+		delete.addActionListener(e -> deleteSelectedNodes());
 		menu.add(delete);
 
-		if (node instanceof PostmanCollection) {
-			// Root collection options
-		}
-
-		JMenuItem clone = new JMenuItem("Clone");
-		clone.addActionListener(e -> cloneNode(node));
+		String cloneLabel = paths.length > 1 ? "Clone Selected (" + paths.length + ")" : "Clone";
+		JMenuItem clone = new JMenuItem(cloneLabel);
+		clone.addActionListener(e -> cloneSelectedNodes());
 		menu.add(clone);
 
 		menu.show(projectTree, x, y);
@@ -878,53 +886,130 @@ public class Antigostman extends JFrame {
 		// autoSaveProject();
 	}
 
-	private void deleteSelectedNode() {
-		PostmanNode node = (PostmanNode) projectTree.getLastSelectedPathComponent();
-		if (node == null) {
+	private void deleteSelectedNodes() {
+		TreePath[] paths = projectTree.getSelectionPaths();
+		if (paths == null || paths.length == 0) {
 			return;
+		}
+
+		String message;
+		if (paths.length == 1) {
+			PostmanNode node = (PostmanNode) paths[0].getLastPathComponent();
+			message = "Are you sure you want to delete '" + node.getName() + "'?";
+		} else {
+			message = "Are you sure you want to delete " + paths.length + " selected nodes?";
 		}
 
 		// Create custom dialog with NO button focused by default
 		Object[] options = { "Yes", "No" };
-		int response = JOptionPane.showOptionDialog(this, "Are you sure you want to delete '" + node.getName() + "'?",
-				"Confirm Delete", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE, null, options, options[1]); // Default
-		// to
-		// "No"
+		int response = JOptionPane.showOptionDialog(this, message, "Confirm Delete", JOptionPane.YES_NO_OPTION,
+				JOptionPane.QUESTION_MESSAGE, null, options, options[1]);
 
 		if (response != 0) {
 			return; // 0 = Yes, 1 = No
 		}
 
-		if (node.getParent() != null) {
-			PostmanNode parent = (PostmanNode) node.getParent();
-			int index = parent.getIndex(node);
+		// To maintain a valid selection, we'll try to find a suitable node to select
+		// after deletions
+		PostmanNode nodeToSelect = null;
 
-			// Remove from tree
-			treeModel.removeNodeFromParent(node);
+		// Group paths by their parent to handle selection logic better
+		for (TreePath path : paths) {
+			PostmanNode node = (PostmanNode) path.getLastPathComponent();
+			if (node.getParent() != null) {
+				PostmanNode parent = (PostmanNode) node.getParent();
+				int index = parent.getIndex(node);
 
-			// Select parent or sibling to keep selection valid
-			if (parent.getChildCount() > 0) {
-				int newIndex = Math.min(index, parent.getChildCount() - 1);
-				PostmanNode sibling = (PostmanNode) parent.getChildAt(newIndex);
-				projectTree.setSelectionPath(new TreePath(sibling.getPath()));
-			} else {
-				projectTree.setSelectionPath(new TreePath(parent.getPath()));
+				// If we haven't picked a node to select yet, or if the current choice is being
+				// deleted
+				if (nodeToSelect == null || isOrHasAncestorIn(nodeToSelect, paths)) {
+					if (parent.getChildCount() > 1) {
+						int newIndex = index > 0 ? index - 1 : 1;
+						if (newIndex < parent.getChildCount()) {
+							nodeToSelect = (PostmanNode) parent.getChildAt(newIndex);
+						} else {
+							nodeToSelect = parent;
+						}
+					} else {
+						nodeToSelect = parent;
+					}
+				}
+
+				// Remove from tree
+				treeModel.removeNodeFromParent(node);
+			} else if (paths.length == 1) {
+				JOptionPane.showMessageDialog(this, "Cannot delete the root project.");
 			}
+		}
 
-			// Autosave
-			// autoSaveProject();
-		} else {
-			JOptionPane.showMessageDialog(this, "Cannot delete the root project.");
+		if (nodeToSelect != null && nodeToSelect.getParent() != null) {
+			projectTree.setSelectionPath(new TreePath(nodeToSelect.getPath()));
+		} else if (rootCollection != null) {
+			projectTree.setSelectionPath(new TreePath(rootCollection.getPath()));
+		}
+	}
+
+	private boolean isOrHasAncestorIn(PostmanNode node, TreePath[] paths) {
+		for (TreePath path : paths) {
+			PostmanNode selection = (PostmanNode) path.getLastPathComponent();
+			if (isChildOf(selection, node)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private void cloneSelectedNodes() {
+		TreePath[] paths = projectTree.getSelectionPaths();
+		if (paths == null || paths.length == 0) {
+			return;
+		}
+
+		if (paths.length == 1) {
+			cloneNode((PostmanNode) paths[0].getLastPathComponent());
+			return;
+		}
+
+		List<PostmanNode> clones = new ArrayList<>();
+		for (TreePath path : paths) {
+			PostmanNode node = (PostmanNode) path.getLastPathComponent();
+			PostmanNode clone = cloneNodeInternal(node, node.getName() + "-CLONE");
+			if (clone != null) {
+				clones.add(clone);
+			}
+		}
+
+		if (!clones.isEmpty()) {
+			TreePath[] newPaths = new TreePath[clones.size()];
+			for (int i = 0; i < clones.size(); i++) {
+				newPaths[i] = new TreePath(clones.get(i).getPath());
+			}
+			projectTree.setSelectionPaths(newPaths);
+			projectTree.scrollPathToVisible(newPaths[newPaths.length - 1]);
 		}
 	}
 
 	private void cloneNode(PostmanNode node) {
-		try {
-			String defaultName = node.getName() + "-CLONE";
-			String newName = JOptionPane.showInputDialog(this, "Enter name for clone:", defaultName);
+		String defaultName = node.getName() + "-CLONE";
+		String newName = JOptionPane.showInputDialog(this, "Enter name for clone:", defaultName);
 
-			if (newName == null) {
-				return; // User cancelled
+		if (newName == null) {
+			return; // User cancelled
+		}
+
+		PostmanNode clone = cloneNodeInternal(node, newName);
+		if (clone != null) {
+			TreePath path = new TreePath(clone.getPath());
+			projectTree.setSelectionPath(path);
+			projectTree.scrollPathToVisible(path);
+		}
+	}
+
+	private PostmanNode cloneNodeInternal(PostmanNode node, String newName) {
+		try {
+			if (node.getParent() == null) {
+				JOptionPane.showMessageDialog(this, "Cannot clone the root node.");
+				return null;
 			}
 
 			// Convert to XML model (no parent references), then back to PostmanNode
@@ -946,20 +1031,12 @@ public class Antigostman extends JFrame {
 			regenerateIds(clone);
 
 			PostmanNode parent = (PostmanNode) node.getParent();
-			if (parent != null) {
-				addChild(parent, clone);
-				// Select the new cloned node
-				TreePath path = new TreePath(clone.getPath());
-				projectTree.setSelectionPath(path);
-				projectTree.scrollPathToVisible(path);
-				projectTree.scrollPathToVisible(path);
-			} else {
-				JOptionPane.showMessageDialog(this, "Cannot clone the root node.");
-			}
-			// autoSaveProject();
+			addChild(parent, clone);
+			return clone;
 		} catch (Exception e) {
 			e.printStackTrace();
 			JOptionPane.showMessageDialog(this, "Clone failed: " + e.getMessage());
+			return null;
 		}
 	}
 
@@ -1225,8 +1302,8 @@ public class Antigostman extends JFrame {
 
 						if (file.exists() && file.isFile()) {
 							writer.append("--").append(boundary).append("\r\n");
-							writer.append("Content-Disposition: form-data; name=\"").append(key)
-									.append("\"; filename=\"").append(file.getName()).append("\"\r\n");
+							writer.append("Content-Disposition: form-data; name=\"").append(key).append("\"; filename=\"")
+									.append(file.getName()).append("\"\r\n");
 							writer.append("Content-Type: application/octet-stream\r\n");
 							writer.append("\r\n");
 							writer.flush();
@@ -1387,11 +1464,11 @@ public class Antigostman extends JFrame {
 					} else {
 						// Use multipart if available, otherwise regular request
 						if (finalMultipartPublisher != null) {
-							return httpClientService.sendRequest(url, req.getMethod(), finalMultipartPublisher,
-									finalHeaders, req.getTimeout(), req.getHttpVersion(), finalMultipartContentType);
+							return httpClientService.sendRequest(url, req.getMethod(), finalMultipartPublisher, finalHeaders,
+									req.getTimeout(), req.getHttpVersion(), finalMultipartContentType);
 						} else {
-							return httpClientService.sendRequest(url, req.getMethod(), body, finalHeaders,
-									req.getTimeout(), req.getHttpVersion());
+							return httpClientService.sendRequest(url, req.getMethod(), body, finalHeaders, req.getTimeout(),
+									req.getHttpVersion());
 						}
 					}
 				}
@@ -1439,8 +1516,7 @@ public class Antigostman extends JFrame {
 							// Response Headers
 							StringBuilder respHeadersSb = new StringBuilder();
 							respHeadersSb.append("Status: ").append(response.statusCode()).append("\n\n");
-							response.headers().map()
-									.forEach((k, v) -> respHeadersSb.append(k).append(": ").append(v).append("\n"));
+							response.headers().map().forEach((k, v) -> respHeadersSb.append(k).append(": ").append(v).append("\n"));
 							nodeConfigPanel.setResponseHeaders(respHeadersSb.toString());
 
 							// Response Body (with JSON formatting if applicable)
@@ -1982,13 +2058,18 @@ public class Antigostman extends JFrame {
 		@Override
 		protected java.awt.datatransfer.Transferable createTransferable(javax.swing.JComponent c) {
 			JTree tree = (JTree) c;
-			TreePath path = tree.getSelectionPath();
-			if (path != null) {
-				PostmanNode node = (PostmanNode) path.getLastPathComponent();
-				// Prevent dragging the root workspace or collections (optional, but good for
-				// structure)
-				// Allowing dragging collections to reorder them is fine, but not into folders
-				return new java.awt.datatransfer.StringSelection(node.getId()); // Use ID as transfer data
+			TreePath[] paths = tree.getSelectionPaths();
+			if (paths != null && paths.length > 0) {
+				java.util.List<String> ids = new java.util.ArrayList<>();
+				for (TreePath path : paths) {
+					PostmanNode node = (PostmanNode) path.getLastPathComponent();
+					if (node.getParent() != null) {
+						ids.add(node.getId());
+					}
+				}
+				if (!ids.isEmpty()) {
+					return new java.awt.datatransfer.StringSelection(String.join(",", ids));
+				}
 			}
 			return null;
 		}
@@ -2019,48 +2100,62 @@ public class Antigostman extends JFrame {
 			}
 
 			try {
-				// Get dropped node ID
-				String nodeId = (String) support.getTransferable()
+				// Get dropped node IDs
+				String nodeIds = (String) support.getTransferable()
 						.getTransferData(java.awt.datatransfer.DataFlavor.stringFlavor);
-				PostmanNode draggedNode = findNodeById(rootCollection, nodeId);
-
-				if (draggedNode == null) {
-					return false;
-				}
+				String[] ids = nodeIds.split(",");
 
 				JTree.DropLocation dl = (JTree.DropLocation) support.getDropLocation();
 				TreePath destPath = dl.getPath();
 				PostmanNode targetParent = (PostmanNode) destPath.getLastPathComponent();
 
-				// Prevent dropping into itself or its children
-				if (draggedNode == targetParent || isChildOf(draggedNode, targetParent)) {
+				int insertIndex = dl.getChildIndex();
+				if (insertIndex == -1) {
+					insertIndex = targetParent.getChildCount();
+				}
+
+				java.util.List<PostmanNode> draggedNodes = new java.util.ArrayList<>();
+				for (String id : ids) {
+					PostmanNode draggedNode = findNodeById(rootCollection, id);
+					if (draggedNode != null) {
+						// Prevent dropping into itself or its children
+						if (draggedNode == targetParent || isChildOf(draggedNode, targetParent)) {
+							continue;
+						}
+						draggedNodes.add(draggedNode);
+					}
+				}
+
+				if (draggedNodes.isEmpty()) {
 					return false;
 				}
 
-				PostmanNode currentParent = (PostmanNode) draggedNode.getParent();
-				int currentIndex = currentParent.getIndex(draggedNode);
+				for (PostmanNode draggedNode : draggedNodes) {
+					PostmanNode currentParent = (PostmanNode) draggedNode.getParent();
+					int currentIndex = currentParent.getIndex(draggedNode);
 
-				// Perform move
-				treeModel.removeNodeFromParent(draggedNode);
+					// Perform move
+					treeModel.removeNodeFromParent(draggedNode);
 
-				int index = dl.getChildIndex();
-				if (index == -1) {
-					index = targetParent.getChildCount();
+					// If moving within the same parent and moving down (source index < target
+					// index),
+					// we need to decrement the target index because removing the node shifted
+					// subsequent indices.
+					if (currentParent == targetParent && currentIndex < insertIndex) {
+						insertIndex--;
+					}
+
+					treeModel.insertNodeInto(draggedNode, targetParent, insertIndex);
+					insertIndex++; // Move next one after this one
 				}
 
-				// If moving within the same parent and moving down (source index < target
-				// index),
-				// we need to decrement the target index because removing the node shifted
-				// subsequent indices.
-				if (currentParent == targetParent && currentIndex < index) {
-					index--;
-				}
-
-				treeModel.insertNodeInto(draggedNode, targetParent, index);
-
-				// Expand target and select moved node
+				// Expand target and select moved nodes
 				projectTree.expandPath(destPath);
-				projectTree.setSelectionPath(new TreePath(draggedNode.getPath()));
+				TreePath[] newPaths = new TreePath[draggedNodes.size()];
+				for (int i = 0; i < draggedNodes.size(); i++) {
+					newPaths[i] = new TreePath(draggedNodes.get(i).getPath());
+				}
+				projectTree.setSelectionPaths(newPaths);
 
 				// Autosave
 				// autoSaveProject();
@@ -2070,32 +2165,6 @@ public class Antigostman extends JFrame {
 				e.printStackTrace();
 				return false;
 			}
-		}
-
-		private PostmanNode findNodeById(PostmanNode root, String id) {
-			if (root.getId().equals(id)) {
-				return root;
-			}
-			for (int i = 0; i < root.getChildCount(); i++) {
-				PostmanNode found = findNodeById((PostmanNode) root.getChildAt(i), id);
-				if (found != null) {
-					return found;
-				}
-			}
-			return null;
-		}
-
-		private boolean isChildOf(PostmanNode potentialParent, PostmanNode node) {
-			if (node == null) {
-				return false;
-			}
-			if (node == potentialParent) {
-				return true;
-			}
-			if (node.getParent() == null) {
-				return false; // Reached root without finding potentialParent
-			}
-			return isChildOf(potentialParent, (PostmanNode) node.getParent());
 		}
 	}
 
@@ -2110,6 +2179,19 @@ public class Antigostman extends JFrame {
 			}
 		}
 		return null;
+	}
+
+	private boolean isChildOf(PostmanNode potentialParent, PostmanNode node) {
+		if (node == null) {
+			return false;
+		}
+		if (node == potentialParent) {
+			return true;
+		}
+		if (node.getParent() == null) {
+			return false; // Reached root without finding potentialParent
+		}
+		return isChildOf(potentialParent, (PostmanNode) node.getParent());
 	}
 
 	public static void main(String[] args) {
@@ -2307,9 +2389,8 @@ public class Antigostman extends JFrame {
 			if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
 				Desktop.getDesktop().browse(new URI(githubUrl));
 			} else {
-				JOptionPane.showMessageDialog(this,
-						"GitHub: " + githubUrl + "\n\nPlease open this URL in your browser.", "About Antigostman",
-						JOptionPane.INFORMATION_MESSAGE);
+				JOptionPane.showMessageDialog(this, "GitHub: " + githubUrl + "\n\nPlease open this URL in your browser.",
+						"About Antigostman", JOptionPane.INFORMATION_MESSAGE);
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
