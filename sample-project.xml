@@ -12,7 +12,7 @@ console.log("=== Project-level prescript ===");
 console.log("Base URL: " + BASE_URL);</prescript>
   <postscript>// Global postscript
 console.log("=== Request completed ===");</postscript>
-  <expanded>true</expanded>
+  <expanded>false</expanded>
   <selectedTabIndex>1</selectedTabIndex>
   <children>
     <children type="folder">
@@ -26,7 +26,7 @@ console.log("=== Request completed ===");</postscript>
       </headers>
       <prescript></prescript>
       <postscript></postscript>
-      <expanded>true</expanded>
+      <expanded>false</expanded>
       <selectedTabIndex>0</selectedTabIndex>
       <children>
         <children type="request">
@@ -164,8 +164,8 @@ console.log("Using API Key: " + API_KEY);</prescript>
       <headers/>
       <prescript></prescript>
       <postscript></postscript>
-      <expanded>true</expanded>
-      <selectedTabIndex>0</selectedTabIndex>
+      <expanded>false</expanded>
+      <selectedTabIndex>1</selectedTabIndex>
       <children>
         <children type="request">
           <id>req-get-posts</id>
@@ -175,7 +175,7 @@ console.log("Using API Key: " + API_KEY);</prescript>
           <prescript></prescript>
           <postscript></postscript>
           <expanded>false</expanded>
-          <selectedTabIndex>1</selectedTabIndex>
+          <selectedTabIndex>2</selectedTabIndex>
           <method>GET</method>
           <url>{{POSTS_ENDPOINT}}</url>
           <body></body>
@@ -266,7 +266,7 @@ _limit=5</body>
       <headers/>
       <prescript></prescript>
       <postscript></postscript>
-      <expanded>true</expanded>
+      <expanded>false</expanded>
       <selectedTabIndex>0</selectedTabIndex>
       <children>
         <children type="request">

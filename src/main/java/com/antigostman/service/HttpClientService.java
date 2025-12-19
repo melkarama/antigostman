@@ -1,4 +1,4 @@
-package com.antigostman;
+package com.antigostman.service;
 
 import java.net.URI;
 import java.net.http.HttpClient;

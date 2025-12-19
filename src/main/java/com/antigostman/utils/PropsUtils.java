@@ -1,5 +1,5 @@
 
-package com.antigostman;
+package com.antigostman.utils;
 
 import java.io.IOException;
 import java.io.StringReader;

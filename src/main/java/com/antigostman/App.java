@@ -46,6 +46,7 @@ import com.antigostman.model.PostmanNode;
 import com.antigostman.model.PostmanRequest;
 import com.antigostman.model.postman.PostmanCollectionV2;
 import com.antigostman.service.DownloadSaver;
+import com.antigostman.service.HttpClientService;
 import com.antigostman.service.PostmanImportService;
 import com.antigostman.service.ProjectService;
 import com.antigostman.service.RecentProjectsManager;
@@ -54,12 +55,14 @@ import com.antigostman.ui.MainMenuBar;
 import com.antigostman.ui.NodeConfigPanel;
 import com.antigostman.ui.ProjectTreePanel;
 import com.antigostman.ui.RequestToolbarPanel;
+import com.antigostman.utils.PropsUtils;
+import com.antigostman.utils.Utils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class Antigostman extends JFrame implements MainMenuBar.AntigostmanController, ProjectTreePanel.TreeController {
+public class App extends JFrame implements MainMenuBar.AntigostmanController, ProjectTreePanel.TreeController {
 
 	private final HttpClientService httpClientService;
 	private final ProjectService projectService;
@@ -89,7 +92,7 @@ public class Antigostman extends JFrame implements MainMenuBar.AntigostmanContro
 	private long lastExecutionDuration;
 	private int consoleStartOffset = 0;
 
-	public Antigostman() throws KeyManagementException, NoSuchAlgorithmException {
+	public App() throws KeyManagementException, NoSuchAlgorithmException {
 		this.httpClientService = new HttpClientService();
 		this.projectService = new ProjectService();
 		this.recentProjectsManager = new RecentProjectsManager();
@@ -1050,7 +1053,7 @@ public class Antigostman extends JFrame implements MainMenuBar.AntigostmanContro
 		}
 		SwingUtilities.invokeLater(() -> {
 			try {
-				Antigostman app = new Antigostman();
+				App app = new App();
 				app.setExtendedState(JFrame.MAXIMIZED_BOTH);
 				app.setVisible(true);
 
