@@ -154,12 +154,29 @@ public class Antigostman extends JFrame implements MainMenuBar.AntigostmanContro
 	@Override
 	public void saveProject() {
 		if (currentProjectFile == null) {
-			JFileChooser fileChooser = new JFileChooser();
+			String lastDir = recentProjectsManager.getLastSaveDirectory();
+			JFileChooser fileChooser = lastDir != null ? new JFileChooser(lastDir) : new JFileChooser();
+			
+			// Propose project name as filename
+			if (rootCollection != null && rootCollection.getName() != null) {
+				String suggestedName = rootCollection.getName();
+				// Remove any characters that aren't valid for filenames
+				suggestedName = suggestedName.replaceAll("[^a-zA-Z0-9._-]", "_");
+				if (!suggestedName.toLowerCase().endsWith(".xml")) {
+					suggestedName += ".xml";
+				}
+				fileChooser.setSelectedFile(new File(fileChooser.getCurrentDirectory(), suggestedName));
+			}
+			
 			if (fileChooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
 				currentProjectFile = fileChooser.getSelectedFile();
 				if (!currentProjectFile.getName().toLowerCase().endsWith(".xml")) {
 					currentProjectFile = new File(currentProjectFile.getAbsolutePath() + ".xml");
 				}
+				
+				// Remember the directory
+				recentProjectsManager.setLastSaveDirectory(currentProjectFile.getParent());
+				
 				recentProjectsManager.addRecentProject(currentProjectFile);
 				updateRecentProjectsMenu(mainMenuBar.getRecentProjectsMenu());
 			} else {
@@ -181,9 +198,13 @@ public class Antigostman extends JFrame implements MainMenuBar.AntigostmanContro
 
 	@Override
 	public void loadProject() {
-		JFileChooser fileChooser = new JFileChooser();
+		String lastDir = recentProjectsManager.getLastSaveDirectory();
+		JFileChooser fileChooser = lastDir != null ? new JFileChooser(lastDir) : new JFileChooser();
 		if (fileChooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
-			loadProjectFile(fileChooser.getSelectedFile());
+			File selectedFile = fileChooser.getSelectedFile();
+			// Remember the directory
+			recentProjectsManager.setLastSaveDirectory(selectedFile.getParent());
+			loadProjectFile(selectedFile);
 		}
 	}
 
@@ -229,10 +250,14 @@ public class Antigostman extends JFrame implements MainMenuBar.AntigostmanContro
 
 	@Override
 	public void importPostmanCollection() {
-		JFileChooser fileChooser = new JFileChooser();
+		String lastDir = recentProjectsManager.getLastSaveDirectory();
+		JFileChooser fileChooser = lastDir != null ? new JFileChooser(lastDir) : new JFileChooser();
 		if (fileChooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
+			File selectedFile = fileChooser.getSelectedFile();
+			// Remember the directory
+			recentProjectsManager.setLastSaveDirectory(selectedFile.getParent());
 			try {
-				PostmanCollectionV2 v2 = objectMapper.readValue(fileChooser.getSelectedFile(), PostmanCollectionV2.class);
+				PostmanCollectionV2 v2 = objectMapper.readValue(selectedFile, PostmanCollectionV2.class);
 				PostmanImportService importer = new PostmanImportService();
 				PostmanCollection imported = importer.convertToAntigostman(v2);
 				
