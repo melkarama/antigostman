@@ -88,6 +88,9 @@ Stay in the flow with these essential shortcuts.
 | `F2` | **Rename** current item |
 | `F3` | **Clone** current item |
 | `Delete` | **Delete** selected item |
+| `Alt/Shift` + `↑`/`↓` | **Move** selected nodes up/down |
+| `Alt/Shift` + `→` | **Expand** selected folder |
+| `Alt/Shift` + `←` | **Collapse** folder or **Select Parent** |
 
 ---
 

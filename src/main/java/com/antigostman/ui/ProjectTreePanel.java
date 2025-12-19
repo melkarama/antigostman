@@ -70,12 +70,28 @@ public class ProjectTreePanel extends JPanel {
         projectTree.addKeyListener(new KeyAdapter() {
             @Override
             public void keyPressed(KeyEvent e) {
-                if (e.getKeyCode() == KeyEvent.VK_F2) {
-                    renameSelectedNode();
-                } else if (e.getKeyCode() == KeyEvent.VK_F3) {
-                    cloneSelectedNodes();
-                } else if (e.getKeyCode() == KeyEvent.VK_DELETE) {
-                    deleteSelectedNodes();
+                if (e.isAltDown() || e.isShiftDown()) {
+                    if (e.getKeyCode() == KeyEvent.VK_UP) {
+                        moveSelectedNodes(-1);
+                        e.consume();
+                    } else if (e.getKeyCode() == KeyEvent.VK_DOWN) {
+                        moveSelectedNodes(1);
+                        e.consume();
+                    } else if (e.getKeyCode() == KeyEvent.VK_RIGHT) {
+                        expandSelectedNodes();
+                        e.consume();
+                    } else if (e.getKeyCode() == KeyEvent.VK_LEFT) {
+                        collapseSelectedNodes();
+                        e.consume();
+                    }
+                } else {
+                    if (e.getKeyCode() == KeyEvent.VK_F2) {
+                        renameSelectedNode();
+                    } else if (e.getKeyCode() == KeyEvent.VK_F3) {
+                        cloneSelectedNodes();
+                    } else if (e.getKeyCode() == KeyEvent.VK_DELETE) {
+                        deleteSelectedNodes();
+                    }
                 }
             }
         });
@@ -338,6 +354,105 @@ public class ProjectTreePanel extends JPanel {
                 controller.onNodesMoved();
                 return true;
             } catch (Exception e) { e.printStackTrace(); return false; }
+        }
+    }
+
+    private void moveSelectedNodes(int direction) {
+        TreePath[] paths = projectTree.getSelectionPaths();
+        if (paths == null || paths.length == 0) return;
+
+        java.util.List<PostmanNode> selectedNodes = new java.util.ArrayList<>();
+        for (TreePath path : paths) {
+            PostmanNode node = (PostmanNode) path.getLastPathComponent();
+            if (node.getParent() != null) {
+                selectedNodes.add(node);
+            }
+        }
+
+        if (selectedNodes.isEmpty()) return;
+
+        java.util.Map<PostmanNode, java.util.List<PostmanNode>> parentToChildren = new java.util.HashMap<>();
+        for (PostmanNode node : selectedNodes) {
+            PostmanNode parent = (PostmanNode) node.getParent();
+            parentToChildren.computeIfAbsent(parent, k -> new java.util.ArrayList<>()).add(node);
+        }
+
+        boolean anyMoved = false;
+        for (java.util.Map.Entry<PostmanNode, java.util.List<PostmanNode>> entry : parentToChildren.entrySet()) {
+            PostmanNode parent = entry.getKey();
+            java.util.List<PostmanNode> childrenInParent = entry.getValue();
+            
+            childrenInParent.sort(java.util.Comparator.comparingInt(parent::getIndex));
+            
+            if (direction < 0) { // UP
+                if (parent.getIndex(childrenInParent.get(0)) > 0) {
+                    for (PostmanNode node : childrenInParent) {
+                        int oldIdx = parent.getIndex(node);
+                        treeModel.removeNodeFromParent(node);
+                        treeModel.insertNodeInto(node, parent, oldIdx - 1);
+                    }
+                    anyMoved = true;
+                }
+            } else { // DOWN
+                if (parent.getIndex(childrenInParent.get(childrenInParent.size() - 1)) < parent.getChildCount() - 1) {
+                    for (int i = childrenInParent.size() - 1; i >= 0; i--) {
+                        PostmanNode node = childrenInParent.get(i);
+                        int oldIdx = parent.getIndex(node);
+                        treeModel.removeNodeFromParent(node);
+                        treeModel.insertNodeInto(node, parent, oldIdx + 1);
+                    }
+                    anyMoved = true;
+                }
+            }
+        }
+
+        if (anyMoved) {
+            TreePath[] newPaths = new TreePath[selectedNodes.size()];
+            for (int i = 0; i < selectedNodes.size(); i++) {
+                newPaths[i] = new TreePath(selectedNodes.get(i).getPath());
+            }
+            projectTree.setSelectionPaths(newPaths);
+            controller.onNodesMoved();
+        }
+    }
+
+    private void expandSelectedNodes() {
+        TreePath[] paths = projectTree.getSelectionPaths();
+        if (paths != null) {
+            for (TreePath path : paths) {
+                projectTree.expandPath(path);
+            }
+        }
+    }
+
+    private void collapseSelectedNodes() {
+        TreePath[] paths = projectTree.getSelectionPaths();
+        if (paths == null || paths.length == 0) return;
+
+        java.util.List<TreePath> newPaths = new java.util.ArrayList<>();
+        boolean selectionChanged = false;
+
+        for (TreePath path : paths) {
+            PostmanNode node = (PostmanNode) path.getLastPathComponent();
+            
+            // If it's a folder/collection and it's expanded, collapse it
+            if (node.getChildCount() > 0 && projectTree.isExpanded(path)) {
+                projectTree.collapsePath(path);
+                newPaths.add(path);
+            } else {
+                // It's either a request node or a closed folder -> select parent
+                TreePath parentPath = path.getParentPath();
+                if (parentPath != null) {
+                    newPaths.add(parentPath);
+                    selectionChanged = true;
+                } else {
+                    newPaths.add(path); // Keep root selected if at root
+                }
+            }
+        }
+
+        if (selectionChanged) {
+            projectTree.setSelectionPaths(newPaths.toArray(new TreePath[0]));
         }
     }
 }
